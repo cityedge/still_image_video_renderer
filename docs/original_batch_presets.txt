@@ -1,0 +1,50 @@
+01_通常_字幕上部_v0
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=6,'"
+
+02_通常_字幕上げ2_v45
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=6,MarginV=45'"
+
+03_通常_字幕上げ_v65
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=6,MarginV=65'"
+
+04_通常_字幕やや上_v95
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=6,MarginV=95'"
+
+04b_通常_字幕わずか上_v110
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=6,MarginV=110'"
+
+05_通常_字幕センター_a10
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=10'"
+
+06_通常_字幕やや下_v155
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=6,MarginV=155'"
+
+07_通常_字幕下げ_v185
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=6,MarginV=185'"
+
+08_通常_字幕下げ2_v215
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='fontname=UD デジタル 教科書体 NK,fontsize=20,alignment=6,MarginV=215'"
+
+12_ショート_字幕上げ2_v55
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='alignment=6,MarginV=55'"
+
+13_ショート_字幕上げ_v80
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='alignment=6,MarginV=80'"
+
+14_ショート_字幕やや上_v90
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='alignment=6,MarginV=90'"
+
+14b_ショート_字幕わずか上_v105
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='alignment=6,MarginV=105'"
+
+15_ショート_字幕センター_a10
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='alignment=10'"
+
+16_ショート_字幕やや下_v155
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='alignment=6,MarginV=155'"
+
+17_ショート_字幕下げ_v185
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='alignment=6,MarginV=185'"
+
+18_ショート_字幕下げ2_v215
+set "video_filters=!video_filters!,subtitles='!escaped_srt_path!':force_style='alignment=6,MarginV=215'"
