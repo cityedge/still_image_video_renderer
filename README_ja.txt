@@ -1,15 +1,16 @@
 Still Image Video Renderer
-v0.2.0
+v1.0.0
 
 概要
 ----
-静止画像、音源ファイル（MP3/WAV）、任意のSRT字幕をffmpegで合成し、MP4を作成するPython/Tkinterアプリのプロトタイプです。
+静止画像、音源ファイル（MP3/WAV）、任意のSRT字幕をffmpegで合成し、MP4を作成するPython/Tkinterアプリです。
 
 主な仕様
 --------
 - 画像 / 音源 / SRTを個別選択できます。SRTは任意です。
 - tkinterdnd2 がある場合、ファイルドロップに対応します。
 - 音源と同名のSRTが同じフォルダにある場合は自動設定します。
+- SRTと同名の音源、または「SRT名_title.png」が同じフォルダにある場合も自動設定します。
 - SRTがない場合は、静止画と音源だけで字幕なしMP4を作成します。
 - 音源だけをドロップ/選択した場合、同じフォルダの「音源名_title.png」も自動検索して画像に設定します。
 - 出力ファイル名の自動候補は音源ファイル名.mp4です。既存ファイルがある場合は _001 などを付けます。
@@ -21,7 +22,7 @@ v0.2.0
 - パネル適用時はffmpegで1フレームのレンダープレビューを生成します。
 - フォント名はドロップダウン（手入力も可）で選択できます。
 - 手作業でフォント名、フォントサイズ、Alignment、MarginVを編集できます。
-- Alignmentは `6（中央上）` と `10（中央）` から選択します。
+- Alignmentは `6（中央上）`、`10（中央）`、`2（中央下）` から選択します。
 - 手作業編集中は簡易プレビューを表示します。
 - 「レンダープレビュー更新」でffmpeg実レンダーのプレビューを更新できます。
 - 画像未指定時も白い16:9背景でプレビューできます。SRT未指定時はプレビュー用字幕テキストを使います。
@@ -50,7 +51,7 @@ run_dev.bat を実行してください。
 EXE化
 -----
 build_exe_onedir.bat を実行してください。
-PyInstallerでtkinterdnd2を含めるため、--collect-data tkinterdnd2 を指定しています。
+PyInstallerでtkinterdnd2を含めるため、--collect-all tkinterdnd2 と --hidden-import tkinterdnd2.TkinterDnD を指定しています。
 Windowsではffmpeg/ffprobe起動時に黒いコンソール窓が出ないよう、subprocessにはCREATE_NO_WINDOW相当の設定を適用しています。
 ffmpeg.exe / ffprobe.exe は bin フォルダに置くと、ビルド後の dist にコピーされます。
 

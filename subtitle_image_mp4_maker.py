@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Still Image Video Renderer
-Version 0.2.0
+Version 1.0.0
 
 Purpose:
   Create an MP4 video from a still image, an audio file, and an optional SRT subtitle file.
@@ -13,7 +13,7 @@ Dependencies:
 
 Distribution note:
   PyInstaller onedir build should include:
-    --collect-data tkinterdnd2
+    --collect-all tkinterdnd2 --hidden-import tkinterdnd2.TkinterDnD
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ except Exception:
     DND_AVAILABLE = False
 
 APP_TITLE = "Still Image Video Renderer"
-APP_VERSION = "0.2.0"
+APP_VERSION = "1.0.0"
 PREVIEW_FONT_SCALE_DEFAULT = 0.76
 SETTINGS_VERSION = 4
 DEFAULT_PREVIEW_FONT = "Yu Gothic UI"
@@ -72,6 +72,15 @@ UI_TEXT = {
     "日本語": {
         "language": "言語 / Language",
         "quick_panel": "クイックパネル",
+        "panel_edit": "パネル編集",
+        "panel_edit_title": "クイックパネル編集",
+        "panel_edit_hint": "移動元のパネルを選び、移動先をクリックします。空きスロットなら移動、使用中スロットなら入れ替えます。",
+        "selected_panel": "選択中:",
+        "no_panel_selected": "未選択",
+        "panel_label": "表示名",
+        "apply_panel_label": "表示名を適用",
+        "clear_panel_slot": "選択スロットを空にする",
+        "close": "閉じる",
         "page_rename": "ページ名変更",
         "reload": "再読込",
         "panel_hint": "パネルに画像・音源・任意のSRTをドロップ",
@@ -127,6 +136,15 @@ UI_TEXT = {
     "English": {
         "language": "Language / 言語",
         "quick_panel": "Quick Panel",
+        "panel_edit": "Edit Panel",
+        "panel_edit_title": "Quick Panel Editor",
+        "panel_edit_hint": "Select a source panel, then click a destination. Empty slots move it; occupied slots swap positions.",
+        "selected_panel": "Selected:",
+        "no_panel_selected": "None",
+        "panel_label": "Label",
+        "apply_panel_label": "Apply Label",
+        "clear_panel_slot": "Clear Selected Slot",
+        "close": "Close",
         "page_rename": "Rename Page",
         "reload": "Reload",
         "panel_hint": "Drop image, audio, and optional SRT onto a panel",
@@ -182,8 +200,8 @@ UI_TEXT = {
 }
 
 ALIGNMENT_LABELS = {
-    "日本語": {6: "6（中央上）", 10: "10（中央）"},
-    "English": {6: "6 (Top center)", 10: "10 (Center)"},
+    "日本語": {6: "6（中央上）", 10: "10（中央）", 2: "2（中央下）"},
+    "English": {6: "6 (Top center)", 10: "10 (Center)", 2: "2 (Bottom center)"},
 }
 
 
@@ -549,7 +567,37 @@ def apply_default_preset_display_data(data: Dict[str, Any]):
                 slot["label"] = display["label"]
 
 
+def load_external_default_presets(fallback: Dict[str, Any]) -> Dict[str, Any]:
+    candidates: List[Path] = []
+    if getattr(sys, "frozen", False):
+        candidates.append(Path(sys.executable).resolve().parent / "presets_default.json")
+    candidates.extend([
+        Path(__file__).resolve().parent / "presets_default.json",
+        Path.cwd() / "presets_default.json",
+    ])
+    seen: set[Path] = set()
+    for path in candidates:
+        try:
+            resolved = path.resolve()
+        except Exception:
+            resolved = path
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        if not path.exists():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(data, dict) and isinstance(data.get("presets"), list) and isinstance(data.get("panel_pages"), list):
+            data.setdefault("settings", {})["settings_version"] = SETTINGS_VERSION
+            return data
+    return fallback
+
+
 apply_default_preset_display_data(DEFAULT_PRESETS)
+DEFAULT_PRESETS = load_external_default_presets(DEFAULT_PRESETS)
 
 
 @dataclass
@@ -587,7 +635,7 @@ class PresetStore:
     def migrate(self):
         settings = self.settings()
         version = int(settings.get("settings_version", 0) or 0)
-        # Prototype preset data can be reset because this app is not public yet.
+        # Pre-1.0 preset data is reset to the v1 default layout.
         if version < 4:
             self.data = json.loads(json.dumps(DEFAULT_PRESETS, ensure_ascii=False))
             self.data.setdefault("settings", {})["settings_version"] = SETTINGS_VERSION
@@ -711,6 +759,55 @@ class PresetStore:
         slots.append({"slot": slot, "preset_id": preset_id, "label": label})
         slots.sort(key=lambda x: int(x.get("slot", 0)))
         self.save()
+
+    def slot_by_number(self, page_index: int, slot: int) -> Optional[Dict[str, Any]]:
+        if page_index < 0 or page_index >= len(self.panel_pages):
+            return None
+        for item in self.panel_pages[page_index].setdefault("slots", []):
+            if int(item.get("slot", 0)) == int(slot):
+                return item
+        return None
+
+    def set_slot_label(self, page_index: int, slot: int, label: Any):
+        item = self.slot_by_number(page_index, slot)
+        if not item:
+            return False
+        item["label"] = label
+        self.save()
+        return True
+
+    def clear_slot(self, page_index: int, slot: int) -> bool:
+        if page_index < 0 or page_index >= len(self.panel_pages):
+            return False
+        slots = self.panel_pages[page_index].setdefault("slots", [])
+        before = len(slots)
+        slots[:] = [s for s in slots if int(s.get("slot", 0)) != int(slot)]
+        if len(slots) == before:
+            return False
+        self.save()
+        return True
+
+    def move_or_swap_slot(self, source_page: int, source_slot: int, target_page: int, target_slot: int) -> bool:
+        if (source_page, source_slot) == (target_page, target_slot):
+            return False
+        source = self.slot_by_number(source_page, source_slot)
+        if not source:
+            return False
+        target = self.slot_by_number(target_page, target_slot)
+        source_copy = dict(source)
+        target_copy = dict(target) if target else None
+        for page_index, slot_no in {(source_page, source_slot), (target_page, target_slot)}:
+            slots = self.panel_pages[page_index].setdefault("slots", [])
+            slots[:] = [s for s in slots if int(s.get("slot", 0)) != int(slot_no)]
+        source_copy["slot"] = int(target_slot)
+        self.panel_pages[target_page].setdefault("slots", []).append(source_copy)
+        if target_copy:
+            target_copy["slot"] = int(source_slot)
+            self.panel_pages[source_page].setdefault("slots", []).append(target_copy)
+        for page in self.panel_pages:
+            page.setdefault("slots", []).sort(key=lambda x: int(x.get("slot", 0)))
+        self.save()
+        return True
 
 
 # -----------------------------
@@ -837,9 +934,24 @@ def sibling_srt_for_audio(audio_path: str) -> Optional[str]:
     return None
 
 
-def sibling_title_image_for_audio(audio_path: str) -> Optional[str]:
-    """Return <audio-stem>_title.png next to the audio file, with a case-insensitive fallback."""
-    p = Path(audio_path)
+def sibling_audio_for_srt(srt_path: str) -> Optional[str]:
+    p = Path(srt_path)
+    for ext in (".mp3", ".wav"):
+        candidate = p.with_suffix(ext)
+        if candidate.exists():
+            return str(candidate)
+    try:
+        for child in p.parent.iterdir():
+            if child.is_file() and child.suffix.lower() in AUDIO_EXTS and child.stem.lower() == p.stem.lower():
+                return str(child)
+    except Exception:
+        pass
+    return None
+
+
+def sibling_title_image_for_path(path: str) -> Optional[str]:
+    """Return <stem>_title.png next to a media or SRT file, with a case-insensitive fallback."""
+    p = Path(path)
     candidate = p.with_name(p.stem + "_title.png")
     if candidate.exists():
         return str(candidate)
@@ -851,6 +963,10 @@ def sibling_title_image_for_audio(audio_path: str) -> Optional[str]:
     except Exception:
         pass
     return None
+
+
+def sibling_title_image_for_audio(audio_path: str) -> Optional[str]:
+    return sibling_title_image_for_path(audio_path)
 
 
 def unique_path(path: Path) -> Path:
@@ -996,6 +1112,7 @@ class App:
         self.output_var = tk.StringVar(value=self.tr("unset_output"))
         self.i18n_widgets: List[Tuple[Any, str, str]] = []
         self.file_row_labels: Dict[str, Any] = {}
+        self.file_value_entries: Dict[str, ttk.Entry] = {}
 
         self.setup_style()
         self.build_ui()
@@ -1074,7 +1191,7 @@ class App:
 
     def alignment_values(self) -> List[str]:
         labels = ALIGNMENT_LABELS.get(self.language_var.get(), ALIGNMENT_LABELS["日本語"])
-        return [labels[6], labels[10]]
+        return [labels[6], labels[10], labels[2]]
 
     def format_alignment(self, value: Optional[int]) -> str:
         labels = ALIGNMENT_LABELS.get(self.language_var.get(), ALIGNMENT_LABELS["日本語"])
@@ -1122,6 +1239,12 @@ class App:
         style.configure("TNotebook", background=self.bg)
         style.configure("TNotebook.Tab", padding=[10, 4])
         style.configure("TEntry", fieldbackground="#111214", foreground=self.fg)
+        style.configure("Path.TEntry", fieldbackground="#111214", foreground=self.fg, insertcolor=self.fg)
+        style.map(
+            "Path.TEntry",
+            fieldbackground=[("readonly", "#111214"), ("focus", "#111214")],
+            foreground=[("readonly", self.fg), ("focus", self.fg), ("disabled", "#777777")],
+        )
         style.configure(
             "Readable.TCombobox",
             fieldbackground="#f2f0ea",
@@ -1180,6 +1303,8 @@ class App:
         name_frame.pack(fill=tk.X, padx=8, pady=(0, 6))
         self.page_rename_button = self.register_i18n(ttk.Button(name_frame, command=self.rename_page), "page_rename")
         self.page_rename_button.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.panel_edit_button = self.register_i18n(ttk.Button(name_frame, command=self.open_panel_editor), "panel_edit")
+        self.panel_edit_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 0))
         self.reload_button = self.register_i18n(ttk.Button(name_frame, command=self.reload_presets), "reload")
         self.reload_button.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(4, 0))
 
@@ -1323,9 +1448,19 @@ class App:
         frame.pack(fill=tk.X, padx=padx, pady=2)
         label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel", width=14), label_key)
         label.pack(side=tk.LEFT)
-        ttk.Label(frame, textvariable=var, style="Panel.TLabel", foreground=self.muted, width=28).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        value_entry = ttk.Entry(frame, textvariable=var, state="readonly", justify=tk.LEFT, width=28, style="Path.TEntry")
+        value_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
+        self.file_value_entries[label_key] = value_entry
+        var.trace_add("write", lambda *_args, entry=value_entry: self.root.after_idle(lambda: self.scroll_entry_to_tail(entry)))
+        self.root.after_idle(lambda entry=value_entry: self.scroll_entry_to_tail(entry))
         button = self.register_i18n(ttk.Button(frame, command=command), button_key)
         button.pack(side=tk.RIGHT)
+
+    def scroll_entry_to_tail(self, entry: ttk.Entry):
+        try:
+            entry.xview_moveto(1.0)
+        except tk.TclError:
+            pass
 
     def available_font_families(self) -> List[str]:
         extras = {"UD デジタル 教科書体 NK", "Yu Gothic UI", "メイリオ", "Meiryo", "Arial"}
@@ -1465,6 +1600,196 @@ class App:
                     btn.tooltip = ToolTip(btn, full_name)
                     self.register_drop(btn, lambda event, pid=preset_id: self.handle_drop(event, preset_id=pid))
 
+    def open_panel_editor(self):
+        if not self.store.panel_pages:
+            return
+        if hasattr(self, "panel_editor_window") and self.panel_editor_window and self.panel_editor_window.winfo_exists():
+            self.panel_editor_window.lift()
+            self.panel_editor_window.focus_set()
+            return
+
+        win = tk.Toplevel(self.root)
+        self.panel_editor_window = win
+        self.panel_editor_page_index = self.current_page_index
+        self.panel_editor_selected: Optional[Tuple[int, int]] = None
+        self.panel_editor_buttons: Dict[int, tk.Button] = {}
+        self.panel_editor_label_var = tk.StringVar()
+        self.panel_editor_selected_var = tk.StringVar(value=f"{self.tr('selected_panel')} {self.tr('no_panel_selected')}")
+
+        win.title(self.tr("panel_edit_title"))
+        win.configure(bg=self.bg)
+        win.transient(self.root)
+        win.grab_set()
+        win.protocol("WM_DELETE_WINDOW", self.close_panel_editor)
+
+        outer = ttk.Frame(win, style="Panel.TFrame")
+        outer.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        ttk.Label(outer, text=self.tr("panel_edit_hint"), style="Panel.TLabel", wraplength=520, justify=tk.LEFT).pack(fill=tk.X)
+
+        page_frame = ttk.Frame(outer, style="Panel.TFrame")
+        page_frame.pack(fill=tk.X, pady=(8, 6))
+        self.panel_editor_page_buttons = []
+        for i in range(len(self.store.panel_pages)):
+            btn = tk.Button(
+                page_frame,
+                text=self.page_display_name(self.store.panel_pages[i], i),
+                command=lambda idx=i: self.set_panel_editor_page(idx),
+                bg="#3a3d44",
+                fg=self.fg,
+                activebackground="#4a4d55",
+                activeforeground=self.fg,
+                relief=tk.FLAT,
+            )
+            btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=2)
+            self.panel_editor_page_buttons.append(btn)
+
+        self.panel_editor_grid = ttk.Frame(outer, style="Panel.TFrame")
+        self.panel_editor_grid.pack(fill=tk.BOTH, expand=True, pady=(2, 8))
+
+        ttk.Label(outer, textvariable=self.panel_editor_selected_var, style="Panel.TLabel", foreground=self.muted).pack(anchor=tk.W)
+
+        label_frame = ttk.Frame(outer, style="Panel.TFrame")
+        label_frame.pack(fill=tk.X, pady=(6, 4))
+        ttk.Label(label_frame, text=self.tr("panel_label"), style="Panel.TLabel", width=12).pack(side=tk.LEFT)
+        self.panel_editor_label_entry = ttk.Entry(label_frame, textvariable=self.panel_editor_label_var, style="Path.TEntry")
+        self.panel_editor_label_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
+        self.panel_editor_label_entry.bind("<Return>", lambda _event: self.apply_panel_editor_label())
+        ttk.Button(label_frame, text=self.tr("apply_panel_label"), command=self.apply_panel_editor_label).pack(side=tk.RIGHT)
+
+        button_frame = ttk.Frame(outer, style="Panel.TFrame")
+        button_frame.pack(fill=tk.X, pady=(4, 0))
+        ttk.Button(button_frame, text=self.tr("clear_panel_slot"), command=self.clear_panel_editor_slot).pack(side=tk.LEFT)
+        ttk.Button(button_frame, text=self.tr("close"), command=self.close_panel_editor).pack(side=tk.RIGHT)
+
+        self.render_panel_editor()
+        win.update_idletasks()
+        win.minsize(max(560, win.winfo_reqwidth()), win.winfo_reqheight())
+
+    def close_panel_editor(self):
+        if hasattr(self, "panel_editor_window") and self.panel_editor_window and self.panel_editor_window.winfo_exists():
+            try:
+                self.panel_editor_window.grab_release()
+            except tk.TclError:
+                pass
+            self.panel_editor_window.destroy()
+
+    def set_panel_editor_page(self, index: int):
+        self.panel_editor_page_index = index
+        self.render_panel_editor()
+
+    def render_panel_editor(self):
+        if not hasattr(self, "panel_editor_grid"):
+            return
+        for child in self.panel_editor_grid.winfo_children():
+            child.destroy()
+        self.panel_editor_buttons = {}
+        page_index = self.panel_editor_page_index
+        page = self.store.panel_pages[page_index]
+        rows = int(page.get("rows", 5))
+        cols = int(page.get("cols", 4))
+        slot_map = {int(s.get("slot", 0)): s for s in page.get("slots", [])}
+
+        for i, btn in enumerate(getattr(self, "panel_editor_page_buttons", [])):
+            btn.config(
+                text=self.page_display_name(self.store.panel_pages[i], i),
+                bg=self.accent if i == page_index else "#3a3d44",
+            )
+
+        selected = getattr(self, "panel_editor_selected", None)
+        for r in range(rows):
+            self.panel_editor_grid.grid_rowconfigure(r, weight=1)
+            for c in range(cols):
+                self.panel_editor_grid.grid_columnconfigure(c, weight=1)
+                slot_no = r * cols + c + 1
+                slot = slot_map.get(slot_no)
+                label = self.tr("empty_slot") if not slot else self.slot_display_label(slot)
+                preset_id = None if not slot else slot.get("preset_id")
+                is_selected = selected == (page_index, slot_no)
+                bg = self.accent if is_selected else ("#343842" if preset_id else "#24262b")
+                fg = self.fg if preset_id or is_selected else "#777"
+                btn = tk.Button(
+                    self.panel_editor_grid,
+                    text=label,
+                    width=12,
+                    height=3,
+                    bg=bg,
+                    fg=fg,
+                    activebackground="#4a4d55",
+                    activeforeground=self.fg,
+                    relief=tk.RAISED,
+                    wraplength=90,
+                    command=lambda s=slot_no: self.on_panel_editor_slot_clicked(s),
+                )
+                btn.grid(row=r, column=c, padx=3, pady=3, sticky="nsew")
+                self.panel_editor_buttons[slot_no] = btn
+        self.refresh_panel_editor_selection()
+
+    def on_panel_editor_slot_clicked(self, slot_no: int):
+        page_index = self.panel_editor_page_index
+        selected = getattr(self, "panel_editor_selected", None)
+        slot = self.store.slot_by_number(page_index, slot_no)
+        if selected:
+            source_page, source_slot = selected
+            if (source_page, source_slot) == (page_index, slot_no):
+                self.panel_editor_selected = None
+                self.render_panel_editor()
+                return
+            if self.store.move_or_swap_slot(source_page, source_slot, page_index, slot_no):
+                self.panel_editor_selected = None
+                self.render_panel()
+                self.render_panel_editor()
+            return
+        if slot:
+            self.panel_editor_selected = (page_index, slot_no)
+            self.refresh_panel_editor_selection()
+            self.render_panel_editor()
+
+    def refresh_panel_editor_selection(self):
+        selected = getattr(self, "panel_editor_selected", None)
+        if not selected:
+            if hasattr(self, "panel_editor_selected_var"):
+                self.panel_editor_selected_var.set(f"{self.tr('selected_panel')} {self.tr('no_panel_selected')}")
+            if hasattr(self, "panel_editor_label_var"):
+                self.panel_editor_label_var.set("")
+            return
+        page_index, slot_no = selected
+        slot = self.store.slot_by_number(page_index, slot_no)
+        if not slot:
+            self.panel_editor_selected = None
+            self.refresh_panel_editor_selection()
+            return
+        page_name = self.page_display_name(self.store.panel_pages[page_index], page_index)
+        preset_name = self.label_for_preset(slot.get("preset_id"))
+        self.panel_editor_selected_var.set(f"{self.tr('selected_panel')} {page_name} #{slot_no}: {preset_name}")
+        self.panel_editor_label_var.set(self.slot_display_label(slot))
+
+    def apply_panel_editor_label(self):
+        selected = getattr(self, "panel_editor_selected", None)
+        if not selected:
+            return
+        page_index, slot_no = selected
+        slot = self.store.slot_by_number(page_index, slot_no)
+        if not slot:
+            return
+        label = self.panel_editor_label_var.get().strip()
+        if not label:
+            label = self.label_for_preset(slot.get("preset_id"))
+        self.store.set_slot_label(page_index, slot_no, localized_record(label, self.language_code(), slot.get("label")))
+        self.panel_editor_selected = None
+        self.render_panel()
+        self.render_panel_editor()
+
+    def clear_panel_editor_slot(self):
+        selected = getattr(self, "panel_editor_selected", None)
+        if not selected:
+            return
+        page_index, slot_no = selected
+        if self.store.clear_slot(page_index, slot_no):
+            self.panel_editor_selected = None
+            self.render_panel()
+            self.render_panel_editor()
+
     def label_for_preset(self, preset_id: Optional[str]) -> str:
         p = self.store.preset_by_id(preset_id or "")
         return self.preset_display_name(p) if p else "?"
@@ -1493,7 +1818,6 @@ class App:
         path = filedialog.askopenfilename(filetypes=[("SRT", "*.srt"), ("All", "*.*")])
         if path:
             self.set_srt(path)
-            self.set_longest_srt_preview_text()
             self.simple_preview()
 
     def select_output(self):
@@ -1526,15 +1850,25 @@ class App:
         if auto_srt:
             srt = sibling_srt_for_audio(path)
             if srt:
-                self.set_srt(srt, auto=True)
+                self.set_srt(srt, auto=True, auto_audio=False, auto_image=False)
             else:
                 self.log("同名SRTは見つかりませんでした。字幕を付ける場合は手動で選択してください。")
         self.update_output_candidate()
 
-    def set_srt(self, path: str, auto: bool = False):
+    def set_srt(self, path: str, auto: bool = False, auto_audio: bool = True, auto_image: bool = True):
         self.srt_path = path
         self.srt_var.set(self.short_path(path))
         self.log(("同名SRTを自動設定: " if auto else "SRTを設定: ") + path)
+        if not auto and auto_image:
+            title_image = sibling_title_image_for_path(path)
+            if title_image:
+                self.set_image(title_image)
+                self.log(f"SRT名_title.png を自動設定: {title_image}")
+        if not auto and auto_audio:
+            audio = sibling_audio_for_srt(path)
+            if audio:
+                self.set_audio(audio, auto_srt=False, auto_image=False)
+                self.log(f"同名音源を自動設定: {audio}")
         self.set_longest_srt_preview_text()
 
     def update_output_candidate(self):
@@ -1605,7 +1939,7 @@ class App:
         if audios:
             self.set_audio(audios[0], auto_srt=True, auto_image=not bool(images))
         if srts:
-            self.set_srt(srts[0])  # explicit drop overrides auto-detected SRT
+            self.set_srt(srts[0], auto_audio=not bool(audios), auto_image=not bool(images))  # explicit drop overrides auto-detected SRT
         for other in others:
             self.log(f"未対応ファイルを無視: {other}")
 

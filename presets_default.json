@@ -1,7 +1,8 @@
 {
   "settings": {
     "preview_font_scale": 0.76,
-    "default_preview_font": "Yu Gothic UI"
+    "default_preview_font": "Yu Gothic UI",
+    "settings_version": 4
   },
   "presets": [
     {
@@ -275,6 +276,48 @@
         "alignment": 6,
         "margin_v": 215
       }
+    },
+    {
+      "id": "15b_v145",
+      "name": {
+        "ja": "15b ショート 字幕わずかに下 v145",
+        "en": null
+      },
+      "tags": [],
+      "style": {
+        "fontname": null,
+        "fontsize": null,
+        "alignment": 6,
+        "margin_v": 145
+      }
+    },
+    {
+      "id": "11_a6",
+      "name": {
+        "ja": "11 ショート 字幕上部 a6",
+        "en": null
+      },
+      "tags": [],
+      "style": {
+        "fontname": null,
+        "fontsize": null,
+        "alignment": 6,
+        "margin_v": null
+      }
+    },
+    {
+      "id": "09_a2",
+      "name": {
+        "ja": "09 通常 字幕下部 a2",
+        "en": null
+      },
+      "tags": [],
+      "style": {
+        "fontname": "UD デジタル 教科書体 NK",
+        "fontsize": 20,
+        "alignment": 2,
+        "margin_v": null
+      }
     }
   ],
   "panel_pages": [
@@ -289,138 +332,162 @@
       "slots": [
         {
           "slot": 1,
-          "preset_id": "normal_top_v0",
-          "label": {
-            "ja": "上部",
-            "en": "Top"
-          }
-        },
-        {
-          "slot": 2,
-          "preset_id": "normal_up2_v45",
-          "label": {
-            "ja": "上げ2",
-            "en": "Up 2"
-          }
-        },
-        {
-          "slot": 3,
-          "preset_id": "normal_up_v65",
-          "label": {
-            "ja": "上げ",
-            "en": "Up"
-          }
-        },
-        {
-          "slot": 4,
-          "preset_id": "normal_slightly_up_v95",
-          "label": {
-            "ja": "やや上",
-            "en": "Slight Up"
-          }
-        },
-        {
-          "slot": 5,
-          "preset_id": "normal_tiny_up_v110",
-          "label": {
-            "ja": "わずか上",
-            "en": "Tiny Up"
-          }
-        },
-        {
-          "slot": 6,
           "preset_id": "normal_center_a10",
           "label": {
-            "ja": "センター",
+            "ja": "05 通常 センター",
             "en": "Center"
           }
         },
         {
-          "slot": 7,
+          "slot": 2,
+          "preset_id": "normal_top_v0",
+          "label": {
+            "ja": "01 通常 上部",
+            "en": "Top"
+          }
+        },
+        {
+          "slot": 3,
+          "preset_id": "normal_up2_v45",
+          "label": {
+            "ja": "02 通常 上げ2",
+            "en": "Up 2"
+          }
+        },
+        {
+          "slot": 4,
+          "preset_id": "normal_up_v65",
+          "label": {
+            "ja": "03 通常 上げ",
+            "en": "Up"
+          }
+        },
+        {
+          "slot": 5,
           "preset_id": "normal_slightly_down_v155",
           "label": {
-            "ja": "やや下",
+            "ja": "06 通常 やや下",
             "en": "Slight Down"
+          }
+        },
+        {
+          "slot": 6,
+          "preset_id": "normal_slightly_up_v95",
+          "label": {
+            "ja": "04 通常 やや上",
+            "en": "Slight Up"
+          }
+        },
+        {
+          "slot": 7,
+          "preset_id": "normal_tiny_up_v110",
+          "label": {
+            "ja": "04b 通常 わずか上",
+            "en": "Tiny Up"
           }
         },
         {
           "slot": 8,
           "preset_id": "normal_down_v185",
           "label": {
-            "ja": "下げ",
+            "ja": "07 通常 下げ",
             "en": "Down"
           }
         },
         {
           "slot": 9,
+          "preset_id": "short_center_a10",
+          "label": {
+            "ja": "15 ショート センター",
+            "en": "Short Center"
+          }
+        },
+        {
+          "slot": 10,
           "preset_id": "normal_down2_v215",
           "label": {
-            "ja": "下げ2",
+            "ja": "08 通常 下げ2",
             "en": "Down 2"
           }
         },
         {
-          "slot": 13,
-          "preset_id": "short_up2_v55",
+          "slot": 11,
+          "preset_id": "09_a2",
           "label": {
-            "ja": "S上げ2",
-            "en": "S Up 2"
+            "ja": "09 通常 下部",
+            "en": "Bottom"
+          }
+        },
+        {
+          "slot": 12,
+          "preset_id": "11_a6",
+          "label": {
+            "ja": "11 ショート 上部",
+            "en": "Short Top"
+          }
+        },
+        {
+          "slot": 13,
+          "preset_id": "15b_v145",
+          "label": {
+            "ja": "15b ショート わずか下",
+            "en": "Short Tiny Down"
           }
         },
         {
           "slot": 14,
-          "preset_id": "short_up_v80",
+          "preset_id": "short_up2_v55",
           "label": {
-            "ja": "S上げ",
-            "en": "S Up"
+            "ja": "12 ショート 上げ2",
+            "en": "Short Up 2"
           }
         },
         {
           "slot": 15,
-          "preset_id": "short_slightly_up_v90",
+          "preset_id": "short_up_v80",
           "label": {
-            "ja": "Sやや上",
-            "en": "S Slight Up"
+            "ja": "13 ショート 上げ",
+            "en": "Short Up"
           }
         },
         {
           "slot": 16,
-          "preset_id": "short_tiny_up_v105",
+          "preset_id": "short_slightly_up_v90",
           "label": {
-            "ja": "Sわずか上",
-            "en": "S Tiny Up"
+            "ja": "14 ショート やや上",
+            "en": "Short Slight Up"
           }
         },
         {
           "slot": 17,
-          "preset_id": "short_center_a10",
+          "preset_id": "short_slightly_down_v155",
           "label": {
-            "ja": "Sセンター",
-            "en": "S Center"
+            "ja": "16 ショート やや下",
+            "en": "Short Slight Down"
           }
         },
         {
           "slot": 18,
-          "preset_id": "short_slightly_down_v155",
+          "preset_id": "short_tiny_up_v105",
           "label": {
-            "ja": "Sやや下",
-            "en": "S Slight Down"
+            "ja": "14b ショート わずか上",
+            "en": "Short Tiny Up"
           }
         },
         {
           "slot": 19,
           "preset_id": "short_down_v185",
           "label": {
-            "ja": "S下げ",
-            "en": "S Down"
+            "ja": "17 ショート 下げ",
+            "en": "Short Down"
           }
         },
         {
           "slot": 20,
           "preset_id": "short_down2_v215",
           "label": {
-            "ja": "S下げ2",
-            "en": "S Down 2"
+            "ja": "18 ショート 下げ2",
+            "en": "Short Down 2"
           }
         }
       ]
