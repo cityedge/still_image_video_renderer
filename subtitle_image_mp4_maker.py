@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Still Image Video Renderer
-Version 1.0.0
+Version 1.1.0
 
 Purpose:
   Create an MP4 video from a still image, an audio file, and an optional SRT subtitle file.
@@ -22,6 +22,7 @@ import os
 import queue
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -33,7 +34,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+from tkinter import colorchooser, filedialog, messagebox, simpledialog
 from tkinter import ttk
 import tkinter.font as tkfont
 
@@ -51,9 +52,9 @@ except Exception:
     DND_AVAILABLE = False
 
 APP_TITLE = "Still Image Video Renderer"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 PREVIEW_FONT_SCALE_DEFAULT = 0.76
-SETTINGS_VERSION = 4
+SETTINGS_VERSION = 9
 DEFAULT_PREVIEW_FONT = "Yu Gothic UI"
 LANGUAGE_JA = "日本語"
 LANGUAGE_EN = "English"
@@ -63,6 +64,29 @@ ASS_DEFAULT_FONT_SIZE = 16.0
 PREVIEW_PLACEHOLDER_SIZE = (1280, 720)
 DEFAULT_PREVIEW_SUBTITLE_JA = "プレビュー用字幕テキスト"
 DEFAULT_PREVIEW_SUBTITLE_EN = "Subtitle text for preview"
+COVER_ICON_GAP_PX = 2
+COVER_TITLE_LINE_GAP_PX = 16
+COVER_TITLE_LINE2_INDENT_LIMIT_PX = 400
+
+DEFAULT_COVER_SETTINGS: Dict[str, Any] = {
+    "title_line1": "",
+    "title_line2": "",
+    "title_font": "BIZ UDPゴシック",
+    "title_bold": True,
+    "title_italic": False,
+    "title_line1_size": 60,
+    "title_line2_size": 60,
+    "title_outline": 2,
+    "title_shadow_enabled": False,
+    "title_shadow_offset": 3,
+    "title_x_pct": 3,
+    "title_y_pct": 5,
+    "title_line_gap": COVER_TITLE_LINE_GAP_PX,
+    "title_line2_indent": 0,
+    "title_color": "#FFFFFF",
+    "icon1_path": "",
+    "icon2_path": "",
+}
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 AUDIO_EXTS = {".mp3", ".wav"}
@@ -100,6 +124,24 @@ UI_TEXT = {
         "output": "出力",
         "select": "選択",
         "set_output": "指定",
+        "cover_section": "タイトル・アイコン",
+        "title_font": "タイトルフォント",
+        "title_line1": "タイトル 1行目",
+        "title_line2": "タイトル 2行目",
+        "title_size": "サイズ (px)",
+        "title_bold": "太字",
+        "title_italic": "斜体",
+        "title_color": "色選択",
+        "title_outline": "縁取り (px)",
+        "title_shadow": "影",
+        "title_shadow_offset": "影ずれ (px)",
+        "title_x": "X（画像幅%）",
+        "title_y": "Y（画像高%）",
+        "title_line_gap": "間隔",
+        "title_line2_indent": "インデント",
+        "icon1": "アイコン 1",
+        "icon2": "アイコン 2",
+        "clear": "消去",
         "current_style": "現在の字幕設定",
         "source_none": "元プリセット: なし",
         "source_prefix": "元プリセット: ",
@@ -164,6 +206,24 @@ UI_TEXT = {
         "output": "Output",
         "select": "Select",
         "set_output": "Set",
+        "cover_section": "Title and Icons",
+        "title_font": "Title font",
+        "title_line1": "Title line 1",
+        "title_line2": "Title line 2",
+        "title_size": "Size (px)",
+        "title_bold": "Bold",
+        "title_italic": "Italic",
+        "title_color": "Choose color",
+        "title_outline": "Outline (px)",
+        "title_shadow": "Shadow",
+        "title_shadow_offset": "Shadow offset (px)",
+        "title_x": "X (% width)",
+        "title_y": "Y (% height)",
+        "title_line_gap": "Gap",
+        "title_line2_indent": "Indent",
+        "icon1": "Icon 1",
+        "icon2": "Icon 2",
+        "clear": "Clear",
         "current_style": "Current style",
         "source_none": "Source preset: none",
         "source_prefix": "Source preset: ",
@@ -298,6 +358,7 @@ DEFAULT_PRESETS: Dict[str, Any] = {
     "settings": {
         "preview_font_scale": PREVIEW_FONT_SCALE_DEFAULT,
         "default_preview_font": DEFAULT_PREVIEW_FONT,
+        "cover": dict(DEFAULT_COVER_SETTINGS),
     },
     "presets": [
         {
@@ -616,6 +677,7 @@ class VideoJob:
     srt_path: Optional[str]
     output_path: str
     style: Dict[str, Any]
+    cover_settings: Dict[str, Any]
     created_at: str
     status: str = "queued"
     error: Optional[str] = None
@@ -644,7 +706,11 @@ class PresetStore:
         if version < SETTINGS_VERSION:
             settings["preview_font_scale"] = PREVIEW_FONT_SCALE_DEFAULT
             settings.setdefault("default_preview_font", DEFAULT_PREVIEW_FONT)
+            migrate_cover_settings(settings, version)
             settings["settings_version"] = SETTINGS_VERSION
+            self.save()
+            return
+        if migrate_cover_settings(settings, version):
             self.save()
 
     def migrate_panel_layout_v3(self):
@@ -682,7 +748,9 @@ class PresetStore:
             self.migrate()
         else:
             self.data = json.loads(json.dumps(DEFAULT_PRESETS, ensure_ascii=False))
-            self.data.setdefault("settings", {})["settings_version"] = SETTINGS_VERSION
+            settings = self.data.setdefault("settings", {})
+            settings["settings_version"] = SETTINGS_VERSION
+            ensure_cover_settings(settings)
             self.save()
 
     def save(self):
@@ -1000,23 +1068,150 @@ def windows_fonts_dir() -> Path:
     return Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
 
 
-def find_font_file(fontname: Optional[str]) -> Optional[str]:
-    # This is intentionally approximate. Render preview is authoritative.
+_WINDOWS_FONT_FACE_INDEX: Optional[Dict[str, List[Tuple[str, int, str]]]] = None
+
+
+def normalize_font_family_name(value: str) -> str:
+    return re.sub(r"\s+", " ", value.lstrip("@").strip()).casefold()
+
+
+def windows_font_paths() -> List[Path]:
+    paths: set[Path] = set()
     fonts_dir = windows_fonts_dir()
-    candidates: List[str] = []
+    try:
+        paths.update(path for path in fonts_dir.iterdir() if path.suffix.lower() in {".ttf", ".otf", ".ttc"})
+    except OSError:
+        pass
+    if os.name != "nt":
+        return sorted(paths)
+    try:
+        import winreg
+        registry_paths = [
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"),
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"),
+        ]
+        for hive, key_path in registry_paths:
+            try:
+                with winreg.OpenKey(hive, key_path) as key:
+                    for index in range(winreg.QueryInfoKey(key)[1]):
+                        _label, value, _kind = winreg.EnumValue(key, index)
+                        if not isinstance(value, str):
+                            continue
+                        path = Path(value)
+                        if not path.is_absolute():
+                            path = fonts_dir / path
+                        if path.suffix.lower() in {".ttf", ".otf", ".ttc"} and path.exists():
+                            paths.add(path)
+            except OSError:
+                continue
+    except ImportError:
+        pass
+    return sorted(paths)
+
+
+def sfnt_face_offsets(font_file) -> List[int]:
+    font_file.seek(0)
+    signature = font_file.read(4)
+    if signature != b"ttcf":
+        return [0]
+    header = font_file.read(8)
+    if len(header) != 8:
+        return []
+    _version, count = struct.unpack(">II", header)
+    raw_offsets = font_file.read(count * 4)
+    if len(raw_offsets) != count * 4:
+        return []
+    return list(struct.unpack(f">{count}I", raw_offsets))
+
+
+def decode_font_name(raw: bytes, platform_id: int) -> str:
+    try:
+        if platform_id in (0, 3):
+            return raw.decode("utf-16-be")
+        if platform_id == 1:
+            return raw.decode("mac_roman")
+        return raw.decode("latin-1")
+    except UnicodeDecodeError:
+        return ""
+
+
+def sfnt_face_family_and_style(font_file, face_offset: int) -> Tuple[List[str], str]:
+    font_file.seek(face_offset)
+    header = font_file.read(12)
+    if len(header) != 12:
+        return [], ""
+    table_count = struct.unpack(">H", header[4:6])[0]
+    directory = font_file.read(table_count * 16)
+    if len(directory) != table_count * 16:
+        return [], ""
+    name_table_offset = None
+    for index in range(table_count):
+        entry = directory[index * 16:(index + 1) * 16]
+        if entry[:4] == b"name":
+            _checksum, offset, _length = struct.unpack(">III", entry[4:16])
+            name_table_offset = offset
+            break
+    if name_table_offset is None:
+        return [], ""
+    font_file.seek(name_table_offset)
+    name_header = font_file.read(6)
+    if len(name_header) != 6:
+        return [], ""
+    _format, count, string_offset = struct.unpack(">HHH", name_header)
+    records = font_file.read(count * 12)
+    families: List[str] = []
+    styles: List[str] = []
+    for index in range(count):
+        record = records[index * 12:(index + 1) * 12]
+        if len(record) != 12:
+            continue
+        platform_id, _encoding_id, _language_id, name_id, length, offset = struct.unpack(">HHHHHH", record)
+        if name_id not in (1, 2, 16, 17):
+            continue
+        font_file.seek(name_table_offset + string_offset + offset)
+        value = decode_font_name(font_file.read(length), platform_id).strip()
+        if not value:
+            continue
+        if name_id in (1, 16):
+            families.append(value)
+        else:
+            styles.append(value)
+    return list(dict.fromkeys(families)), " ".join(dict.fromkeys(styles))
+
+
+def windows_font_face_index() -> Dict[str, List[Tuple[str, int, str]]]:
+    global _WINDOWS_FONT_FACE_INDEX
+    if _WINDOWS_FONT_FACE_INDEX is not None:
+        return _WINDOWS_FONT_FACE_INDEX
+    index: Dict[str, List[Tuple[str, int, str]]] = {}
+    for path in windows_font_paths():
+        try:
+            with path.open("rb") as font_file:
+                for face_index, face_offset in enumerate(sfnt_face_offsets(font_file)):
+                    families, style = sfnt_face_family_and_style(font_file, face_offset)
+                    for family in families:
+                        key = normalize_font_family_name(family)
+                        if key:
+                            index.setdefault(key, []).append((str(path), face_index, style))
+        except OSError:
+            continue
+    _WINDOWS_FONT_FACE_INDEX = index
+    return index
+
+
+def find_font_spec(fontname: Optional[str], bold: bool = False) -> Tuple[Optional[str], int]:
     if fontname:
-        lower = fontname.lower()
-        if "ud" in lower and "教科書" in fontname:
-            candidates += ["UDDigiKyokashoN-R.ttc", "UDDigiKyokashoNK-R.ttc", "UDDigiKyokashoNP-R.ttc"]
-        if "meiryo" in lower or "メイリオ" in fontname:
-            candidates += ["meiryo.ttc", "meiryob.ttc"]
-        if "yu gothic" in lower or "游ゴシック" in fontname:
-            candidates += ["YuGothM.ttc", "YuGothR.ttc", "YuGothB.ttc"]
-    candidates += ["meiryo.ttc", "YuGothM.ttc", "YuGothR.ttc", "msgothic.ttc", "arial.ttf"]
-    for name in candidates:
-        path = fonts_dir / name
-        if path.exists():
-            return str(path)
+        direct_path = Path(fontname)
+        if direct_path.is_file():
+            return str(direct_path), 0
+        matches = windows_font_face_index().get(normalize_font_family_name(fontname), [])
+        if matches:
+            def score(match: Tuple[str, int, str]) -> int:
+                style = match[2].casefold()
+                is_bold = any(word in style for word in ("bold", "black", "太字", "ボールド"))
+                return 0 if is_bold == bold else 1
+            path, face_index, _style = min(matches, key=score)
+            return path, face_index
     # Linux fallback for sandbox/local non-Windows.
     for path in [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -1024,18 +1219,258 @@ def find_font_file(fontname: Optional[str]) -> Optional[str]:
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
     ]:
         if Path(path).exists():
-            return path
-    return None
+            return path, 0
+    return None, 0
 
 
-def load_preview_font(fontname: Optional[str], size: int):
-    path = find_font_file(fontname)
+def find_font_file(fontname: Optional[str], bold: bool = False) -> Optional[str]:
+    path, _face_index = find_font_spec(fontname, bold=bold)
+    return path
+
+
+def load_preview_font(fontname: Optional[str], size: int, bold: bool = False):
+    path, face_index = find_font_spec(fontname, bold=bold)
     if path:
         try:
-            return ImageFont.truetype(path, max(1, int(size)))
+            return ImageFont.truetype(path, max(1, int(size)), index=face_index)
         except Exception:
             pass
     return ImageFont.load_default()
+
+
+def ensure_cover_settings(settings: Dict[str, Any]) -> bool:
+    """Add new cover settings without disturbing existing user values."""
+    cover = settings.get("cover")
+    changed = not isinstance(cover, dict)
+    if not isinstance(cover, dict):
+        cover = {}
+        settings["cover"] = cover
+    for key, value in DEFAULT_COVER_SETTINGS.items():
+        if key not in cover:
+            cover[key] = value
+            changed = True
+    return changed
+
+
+def migrate_cover_settings(settings: Dict[str, Any], version: int) -> bool:
+    existing_cover = settings.get("cover") if isinstance(settings.get("cover"), dict) else {}
+    had_x = "title_x_pct" in existing_cover
+    had_y = "title_y_pct" in existing_cover
+    legacy_layout = str(existing_cover.get("title_layout") or "top_left")
+    legacy_offset_x = existing_cover.get("title_offset_x_pct", 0)
+    legacy_offset_y = existing_cover.get("title_offset_y_pct", 0)
+    changed = ensure_cover_settings(settings)
+    cover = settings["cover"]
+    # Version 5 was introduced during development with a temporary visual
+    # baseline. Update that exact baseline, while preserving any user edits.
+    if version < 6:
+        old_defaults = {
+            "title_font": "Yu Gothic UI",
+            "title_line1_size": 72,
+            "title_line2_size": 72,
+            "title_outline": 3,
+            "title_shadow_enabled": True,
+            "title_shadow_offset": 3,
+        }
+        if all(cover.get(key) == value for key, value in old_defaults.items()):
+            for key, value in DEFAULT_COVER_SETTINGS.items():
+                if cover.get(key) != value:
+                    cover[key] = value
+                    changed = True
+    if version < 7:
+        # The previous controls used a corner preset plus an offset. The new
+        # controls are absolute percentages from the upper-left corner.
+        if legacy_layout == "top_left":
+            try:
+                migrated_x = max(0, min(100, 3 + int(legacy_offset_x)))
+                migrated_y = max(0, min(100, 3 + int(legacy_offset_y)))
+            except (TypeError, ValueError):
+                migrated_x, migrated_y = 3, 3
+        else:
+            migrated_x, migrated_y = 3, 3
+        if not had_x and cover.get("title_x_pct") != migrated_x:
+            cover["title_x_pct"] = migrated_x
+            changed = True
+        if not had_y and cover.get("title_y_pct") != migrated_y:
+            cover["title_y_pct"] = migrated_y
+            changed = True
+    return changed
+
+
+def get_cover_settings(settings: Dict[str, Any]) -> Dict[str, Any]:
+    migrate_cover_settings(settings, SETTINGS_VERSION)
+    return settings["cover"]
+
+
+def parse_cover_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def normalize_cover_color(value: Any, default: str = "#FFFFFF") -> str:
+    color = str(value or "").strip()
+    if re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+        return color.upper()
+    return default
+
+
+def render_title_line_image(
+    text: str,
+    fontname: Optional[str],
+    size: int,
+    outline: int,
+    bold: bool,
+    italic: bool,
+    fill: str,
+    stroke_fill: str,
+) -> Image.Image:
+    font = load_preview_font(fontname, max(6, size), bold=bold)
+    measure = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    bbox = measure.textbbox((0, 0), text, font=font, stroke_width=outline)
+    width = max(1, bbox[2] - bbox[0])
+    height = max(1, bbox[3] - bbox[1])
+    line = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    ImageDraw.Draw(line).text(
+        (-bbox[0], -bbox[1]),
+        text,
+        font=font,
+        fill=fill,
+        stroke_width=outline,
+        stroke_fill=stroke_fill,
+    )
+    if not italic:
+        return line
+
+    # Many Japanese system fonts have no italic face. Apply a light shear so
+    # the italic checkbox has a visible and consistent result for every font.
+    shear = 0.20
+    extra_width = max(1, int(round(height * shear)))
+    return line.transform(
+        (width + extra_width, height),
+        Image.Transform.AFFINE,
+        (1, shear, -extra_width, 0, 1, 0),
+        resample=Image.Resampling.BICUBIC,
+    )
+
+
+def title_line_for_width(
+    text: str,
+    fontname: Optional[str],
+    requested_size: int,
+    max_width: int,
+    outline: int,
+    bold: bool,
+    italic: bool,
+    fill: str = "white",
+    stroke_fill: str = "black",
+) -> Image.Image:
+    """Keep the requested pixel size unless a line would leave the canvas."""
+    size = max(6, requested_size)
+    while True:
+        line = render_title_line_image(text, fontname, size, outline, bold, italic, fill, stroke_fill)
+        if line.width <= max_width or size <= 6:
+            return line
+        size -= 1
+
+
+def load_cover_icon(path: str) -> Optional[Image.Image]:
+    if not path or not Path(path).exists():
+        return None
+    try:
+        with Image.open(path) as source:
+            return source.convert("RGBA")
+    except Exception:
+        return None
+
+
+def compose_cover_image(base_image: Image.Image, cover: Dict[str, Any]) -> Image.Image:
+    """Add title and native-size icons to a copy of a still image."""
+    image = base_image.convert("RGBA")
+    width, height = image.size
+    title_font = str(cover.get("title_font") or DEFAULT_PREVIEW_FONT)
+    title_bold = bool(cover.get("title_bold"))
+    title_italic = bool(cover.get("title_italic"))
+    title_color = normalize_cover_color(cover.get("title_color"))
+    outline = max(0, parse_cover_int(cover.get("title_outline")))
+    shadow_offset = max(0, parse_cover_int(cover.get("title_shadow_offset")))
+    shadow_enabled = bool(cover.get("title_shadow_enabled"))
+    max_width = max(1, width)
+    title_x = max(0, min(100, parse_cover_int(cover.get("title_x_pct"), 3)))
+    title_y = max(0, min(100, parse_cover_int(cover.get("title_y_pct"), 3)))
+    left = int(round(width * title_x / 100.0))
+    top = int(round(height * title_y / 100.0))
+
+    lines: List[Tuple[str, int, Image.Image, bool]] = []
+    for text_key, size_key in (("title_line1", "title_line1_size"), ("title_line2", "title_line2_size")):
+        text = str(cover.get(text_key) or "").strip()
+        if not text:
+            continue
+        try:
+            requested_size = max(6, int(cover.get(size_key) or 6))
+        except (TypeError, ValueError):
+            requested_size = 6
+        line = title_line_for_width(
+            text,
+            title_font,
+            requested_size,
+            max_width,
+            outline,
+            title_bold,
+            title_italic,
+            fill=title_color,
+        )
+        lines.append((text, requested_size, line, text_key == "title_line2"))
+
+    if lines:
+        line_gap = max(0, parse_cover_int(cover.get("title_line_gap"), COVER_TITLE_LINE_GAP_PX))
+        line2_indent = max(
+            -COVER_TITLE_LINE2_INDENT_LIMIT_PX,
+            min(COVER_TITLE_LINE2_INDENT_LIMIT_PX, parse_cover_int(cover.get("title_line2_indent"))),
+        )
+        line_heights = [line.height for _text, _size, line, _is_line2 in lines]
+        for index, (text, requested_size, line, is_line2) in enumerate(lines):
+            line_left = left + (line2_indent if is_line2 else 0)
+            if shadow_enabled and shadow_offset:
+                shadow = title_line_for_width(
+                    text,
+                    title_font,
+                    requested_size,
+                    max_width,
+                    outline,
+                    title_bold,
+                    title_italic,
+                    fill="black",
+                    stroke_fill="black",
+                )
+                image.paste(shadow, (line_left + shadow_offset, top + shadow_offset), shadow)
+            image.paste(line, (line_left, top), line)
+            top += line_heights[index] + line_gap
+
+    # Icon 1 is the left icon and icon 2 is anchored to the lower-right edge.
+    icons = [
+        icon for icon in (
+            load_cover_icon(str(cover.get("icon1_path") or "")),
+            load_cover_icon(str(cover.get("icon2_path") or "")),
+        )
+        if icon is not None
+    ]
+    right = width - COVER_ICON_GAP_PX
+    bottom = height - COVER_ICON_GAP_PX
+    for icon in reversed(icons):
+        right -= icon.width
+        image.paste(icon, (right, bottom - icon.height), icon)
+        right -= COVER_ICON_GAP_PX
+
+    return image.convert("RGB")
+
+
+def load_and_compose_cover_image(image_path: Optional[str], cover: Dict[str, Any]) -> Tuple[Image.Image, bool]:
+    if image_path and Path(image_path).exists():
+        with Image.open(image_path) as source:
+            return compose_cover_image(source, cover), False
+    return compose_cover_image(Image.new("RGB", PREVIEW_PLACEHOLDER_SIZE, "white"), cover), True
 
 
 class ToolTip:
@@ -1101,10 +1536,14 @@ class App:
         self.ui_queue: queue.Queue[Callable[[], None]] = queue.Queue()
         self.pending_logs: List[str] = []
         self.render_thread: Optional[threading.Thread] = None
+        self._render_preview_requested = False
+        self._render_preview_after_id: Optional[str] = None
         self.video_jobs: Dict[str, VideoJob] = {}
         self.job_lock = threading.Lock()
         self.reserved_output_paths: set[str] = set()
         self._suppress_var_events = False
+        self._suppress_cover_events = False
+        self.icon_paths: Dict[int, str] = {}
         self.language_var = tk.StringVar(value="日本語")
         self.image_var = tk.StringVar(value=self.tr("unset"))
         self.audio_var = tk.StringVar(value=self.tr("unset"))
@@ -1120,6 +1559,7 @@ class App:
         self.render_panel()
         self.update_status()
         self.root.after(100, self.process_log_queue)
+        self.request_render_preview(delay_ms=250)
 
         if not DND_AVAILABLE:
             self.log("tkinterdnd2 が見つかりません。ドラッグ＆ドロップなしで起動しました。")
@@ -1264,16 +1704,53 @@ class App:
         self.root.option_add("*TCombobox*Listbox.selectBackground", self.accent)
         self.root.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
 
+    def editable_entry(self, parent, **kwargs):
+        return tk.Entry(
+            parent,
+            bg="#111214",
+            fg=self.fg,
+            insertbackground=self.fg,
+            selectbackground=self.accent,
+            selectforeground="#FFFFFF",
+            highlightthickness=1,
+            highlightbackground="#56585d",
+            highlightcolor=self.accent,
+            relief=tk.SOLID,
+            bd=1,
+            **kwargs,
+        )
+
+    def editable_spinbox(self, parent, **kwargs):
+        return tk.Spinbox(
+            parent,
+            bg="#111214",
+            fg=self.fg,
+            insertbackground=self.fg,
+            selectbackground=self.accent,
+            selectforeground="#FFFFFF",
+            buttonbackground="#d8d6d0",
+            highlightthickness=1,
+            highlightbackground="#56585d",
+            highlightcolor=self.accent,
+            relief=tk.SOLID,
+            bd=1,
+            **kwargs,
+        )
+
     def build_ui(self):
         main = ttk.Frame(self.root)
         main.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Top area: left quick panel, center preview, right controls
-        top = ttk.Frame(main)
-        top.pack(fill=tk.BOTH, expand=True)
-
-        self.left = ttk.Frame(top, style="Panel.TFrame")
+        # The quick panel occupies the entire left edge. The workspace on its
+        # right owns both the preview row and the MP4 jobs / log row.
+        self.left = ttk.Frame(main, style="Panel.TFrame")
         self.left.pack(side=tk.LEFT, fill=tk.Y)
+
+        workspace = ttk.Frame(main)
+        workspace.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(8, 0))
+
+        top = ttk.Frame(workspace)
+        top.pack(fill=tk.BOTH, expand=True)
 
         self.right = ttk.Frame(top, style="Panel.TFrame")
         self.right.pack(side=tk.RIGHT, fill=tk.Y)
@@ -1284,7 +1761,7 @@ class App:
         self.build_left_panel()
         self.build_center_preview()
         self.build_right_controls()
-        self.build_bottom(main)
+        self.build_bottom(workspace)
 
     def build_left_panel(self):
         header = ttk.Frame(self.left, style="Panel.TFrame")
@@ -1325,6 +1802,266 @@ class App:
         self.create_mp4_button = self.register_i18n(ttk.Button(render_section, command=self.create_mp4), "create_mp4")
         self.create_mp4_button.pack(fill=tk.X, padx=6, pady=6)
 
+        self.build_cover_controls()
+
+    def build_cover_controls(self):
+        cover = get_cover_settings(self.store.settings())
+        section = self.register_i18n(ttk.LabelFrame(self.left, style="Panel.TLabelframe"), "cover_section")
+        section.pack(fill=tk.X, padx=8, pady=(0, 8))
+
+        self._suppress_cover_events = True
+        self.title_font_var = tk.StringVar(value=str(cover["title_font"]))
+        self.title_bold_var = tk.BooleanVar(value=bool(cover["title_bold"]))
+        self.title_italic_var = tk.BooleanVar(value=bool(cover["title_italic"]))
+        self.title_color_var = tk.StringVar(value=normalize_cover_color(cover.get("title_color")))
+        self.title_line1_var = tk.StringVar(value=str(cover["title_line1"]))
+        self.title_line2_var = tk.StringVar(value=str(cover["title_line2"]))
+        self.title_line1_size_var = tk.StringVar(value=str(cover["title_line1_size"]))
+        self.title_line2_size_var = tk.StringVar(value=str(cover["title_line2_size"]))
+        self.title_outline_var = tk.StringVar(value=str(cover["title_outline"]))
+        self.title_shadow_enabled = tk.BooleanVar(value=bool(cover["title_shadow_enabled"]))
+        self.title_shadow_offset_var = tk.StringVar(value=str(cover["title_shadow_offset"]))
+        self.title_x_var = tk.IntVar(value=max(0, min(100, parse_cover_int(cover["title_x_pct"], 3))))
+        self.title_y_var = tk.IntVar(value=max(0, min(100, parse_cover_int(cover["title_y_pct"], 3))))
+        self.title_line_gap_var = tk.StringVar(value=str(cover["title_line_gap"]))
+        self.title_line2_indent_var = tk.StringVar(value=str(cover["title_line2_indent"]))
+        self.icon_paths = {
+            1: str(cover.get("icon1_path") or ""),
+            2: str(cover.get("icon2_path") or ""),
+        }
+        self.icon1_var = tk.StringVar(value=self.short_path(self.icon_paths[1]) if self.icon_paths[1] else self.tr("unset"))
+        self.icon2_var = tk.StringVar(value=self.short_path(self.icon_paths[2]) if self.icon_paths[2] else self.tr("unset"))
+        self._suppress_cover_events = False
+
+        self.add_cover_position_slider(section, "title_x", self.title_x_var)
+        self.add_cover_position_slider(section, "title_y", self.title_y_var)
+        self.add_cover_combo_row(section, "title_font", self.title_font_var, self.available_font_families(), "title_font_combo", editable=True)
+        style_row = ttk.Frame(section, style="Panel.TFrame")
+        style_row.pack(fill=tk.X, padx=6, pady=2)
+        bold_check = self.register_i18n(ttk.Checkbutton(style_row, variable=self.title_bold_var), "title_bold")
+        bold_check.pack(side=tk.LEFT)
+        italic_check = self.register_i18n(ttk.Checkbutton(style_row, variable=self.title_italic_var), "title_italic")
+        italic_check.pack(side=tk.LEFT, padx=(10, 0))
+        self.title_color_button = self.register_i18n(
+            tk.Button(style_row, command=self.select_title_color, relief=tk.RAISED, bd=1, padx=6),
+            "title_color",
+        )
+        self.title_color_button.pack(side=tk.LEFT, padx=(10, 0))
+        self.update_title_color_button()
+        self.add_cover_entry_row(section, "title_line1", self.title_line1_var)
+        self.add_cover_compact_entry_row(section, "title_size", self.title_line1_size_var)
+        self.add_cover_entry_row(section, "title_line2", self.title_line2_var)
+        self.add_title_line2_size_row(section)
+        self.add_cover_compact_entry_row(section, "title_outline", self.title_outline_var)
+
+        shadow_row = ttk.Frame(section, style="Panel.TFrame")
+        shadow_row.pack(fill=tk.X, padx=6, pady=2)
+        shadow_label = self.register_i18n(ttk.Label(shadow_row, style="Panel.TLabel", width=15), "title_shadow")
+        shadow_label.pack(side=tk.LEFT)
+        ttk.Checkbutton(shadow_row, variable=self.title_shadow_enabled).pack(side=tk.LEFT)
+        offset_label = self.register_i18n(ttk.Label(shadow_row, style="Panel.TLabel", width=16), "title_shadow_offset")
+        offset_label.pack(side=tk.LEFT, padx=(8, 2))
+        self.editable_entry(shadow_row, textvariable=self.title_shadow_offset_var, width=5).pack(side=tk.LEFT)
+
+        self.add_cover_icon_row(section, 1)
+        self.add_cover_icon_row(section, 2)
+
+        for var in [
+            self.title_font_var,
+            self.title_bold_var,
+            self.title_italic_var,
+            self.title_color_var,
+            self.title_line1_var,
+            self.title_line2_var,
+            self.title_line1_size_var,
+            self.title_line2_size_var,
+            self.title_outline_var,
+            self.title_shadow_enabled,
+            self.title_shadow_offset_var,
+            self.title_x_var,
+            self.title_y_var,
+            self.title_line_gap_var,
+            self.title_line2_indent_var,
+        ]:
+            var.trace_add("write", lambda *_args: self.on_cover_var_changed())
+
+    def add_cover_combo_row(self, parent, label_key: str, value_var: tk.StringVar, values: List[str], attr_name: str, editable: bool = False):
+        frame = ttk.Frame(parent, style="Panel.TFrame")
+        frame.pack(fill=tk.X, padx=6, pady=2)
+        label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel", width=15), label_key)
+        label.pack(side=tk.LEFT)
+        combo = ttk.Combobox(
+            frame,
+            textvariable=value_var,
+            values=values,
+            state="normal" if editable else "readonly",
+            style="Readable.TCombobox",
+        )
+        combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        setattr(self, attr_name, combo)
+
+    def add_cover_entry_row(self, parent, label_key: str, value_var: tk.StringVar):
+        frame = ttk.Frame(parent, style="Panel.TFrame")
+        frame.pack(fill=tk.X, padx=6, pady=2)
+        label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel", width=15), label_key)
+        label.pack(side=tk.LEFT)
+        self.editable_entry(frame, textvariable=value_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+    def add_cover_compact_entry_row(self, parent, label_key: str, value_var: tk.StringVar):
+        frame = ttk.Frame(parent, style="Panel.TFrame")
+        frame.pack(fill=tk.X, padx=6, pady=2)
+        label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel", width=15), label_key)
+        label.pack(side=tk.LEFT)
+        self.editable_entry(frame, textvariable=value_var, width=8).pack(side=tk.LEFT)
+
+    def add_title_line2_size_row(self, parent):
+        frame = ttk.Frame(parent, style="Panel.TFrame")
+        frame.pack(fill=tk.X, padx=6, pady=2)
+        size_label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel", width=13), "title_size")
+        size_label.pack(side=tk.LEFT)
+        self.editable_entry(frame, textvariable=self.title_line2_size_var, width=5).pack(side=tk.LEFT)
+        gap_label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel"), "title_line_gap")
+        gap_label.pack(side=tk.LEFT, padx=(10, 2))
+        self.editable_entry(frame, textvariable=self.title_line_gap_var, width=4).pack(side=tk.LEFT)
+        indent_label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel"), "title_line2_indent")
+        indent_label.pack(side=tk.LEFT, padx=(8, 2))
+        self.editable_spinbox(
+            frame,
+            from_=-COVER_TITLE_LINE2_INDENT_LIMIT_PX,
+            to=COVER_TITLE_LINE2_INDENT_LIMIT_PX,
+            textvariable=self.title_line2_indent_var,
+            width=5,
+        ).pack(side=tk.LEFT)
+
+    def add_cover_position_slider(self, parent, label_key: str, value_var: tk.IntVar):
+        frame = ttk.Frame(parent, style="Panel.TFrame")
+        frame.pack(fill=tk.X, padx=6, pady=2)
+        label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel", width=15), label_key)
+        label.pack(side=tk.LEFT)
+        scale = tk.Scale(
+            frame,
+            variable=value_var,
+            from_=0,
+            to=100,
+            resolution=1,
+            orient=tk.HORIZONTAL,
+            showvalue=False,
+            highlightthickness=0,
+            bg=self.panel_bg,
+            fg=self.fg,
+            activebackground=self.accent,
+            troughcolor="#111214",
+            bd=0,
+        )
+        scale.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Label(frame, textvariable=value_var, style="Panel.TLabel", width=4, anchor=tk.E).pack(side=tk.LEFT)
+
+    def add_cover_icon_row(self, parent, icon_number: int):
+        frame = ttk.Frame(parent, style="Panel.TFrame")
+        frame.pack(fill=tk.X, padx=6, pady=2)
+        label = self.register_i18n(ttk.Label(frame, style="Panel.TLabel", width=15), f"icon{icon_number}")
+        label.pack(side=tk.LEFT)
+        value_var = self.icon1_var if icon_number == 1 else self.icon2_var
+        entry = ttk.Entry(frame, textvariable=value_var, state="readonly", style="Path.TEntry")
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 4))
+        value_var.trace_add("write", lambda *_args, target=entry: self.root.after_idle(lambda: self.scroll_entry_to_tail(target)))
+        self.root.after_idle(lambda target=entry: self.scroll_entry_to_tail(target))
+        select_button = self.register_i18n(ttk.Button(frame, command=lambda n=icon_number: self.select_cover_icon(n)), "select")
+        select_button.pack(side=tk.LEFT)
+        clear_button = self.register_i18n(ttk.Button(frame, command=lambda n=icon_number: self.clear_cover_icon(n)), "clear")
+        clear_button.pack(side=tk.LEFT, padx=(3, 0))
+
+    def cover_settings_snapshot(self) -> Dict[str, Any]:
+        cover = dict(DEFAULT_COVER_SETTINGS)
+        if not hasattr(self, "title_line1_var"):
+            cover.update(get_cover_settings(self.store.settings()))
+            return cover
+        cover.update({
+            "title_font": self.title_font_var.get().strip() or DEFAULT_PREVIEW_FONT,
+            "title_bold": bool(self.title_bold_var.get()),
+            "title_italic": bool(self.title_italic_var.get()),
+            "title_color": normalize_cover_color(self.title_color_var.get()),
+            "title_line1": self.title_line1_var.get(),
+            "title_line2": self.title_line2_var.get(),
+            "title_line1_size": max(1, self.parse_int(self.title_line1_size_var.get()) or DEFAULT_COVER_SETTINGS["title_line1_size"]),
+            "title_line2_size": max(1, self.parse_int(self.title_line2_size_var.get()) or DEFAULT_COVER_SETTINGS["title_line2_size"]),
+            "title_outline": max(0, self.parse_int(self.title_outline_var.get()) or 0),
+            "title_shadow_enabled": bool(self.title_shadow_enabled.get()),
+            "title_shadow_offset": max(0, self.parse_int(self.title_shadow_offset_var.get()) or 0),
+            "title_x_pct": int(self.title_x_var.get()),
+            "title_y_pct": int(self.title_y_var.get()),
+            "title_line_gap": max(0, self.parse_int(self.title_line_gap_var.get()) or 0),
+            "title_line2_indent": max(
+                -COVER_TITLE_LINE2_INDENT_LIMIT_PX,
+                min(COVER_TITLE_LINE2_INDENT_LIMIT_PX, self.parse_int(self.title_line2_indent_var.get()) or 0),
+            ),
+            "icon1_path": self.icon_paths.get(1, ""),
+            "icon2_path": self.icon_paths.get(2, ""),
+        })
+        return json.loads(json.dumps(cover, ensure_ascii=False))
+
+    def save_cover_settings(self):
+        saved = get_cover_settings(self.store.settings())
+        saved.update(self.cover_settings_snapshot())
+        self.store.save()
+
+    def on_cover_var_changed(self):
+        if self._suppress_cover_events:
+            return
+        self.update_title_color_button()
+        self.save_cover_settings()
+        self.render_preview_path = None
+        self.simple_preview()
+
+    def update_title_color_button(self):
+        if not hasattr(self, "title_color_button"):
+            return
+        color = normalize_cover_color(self.title_color_var.get())
+        red = int(color[1:3], 16)
+        green = int(color[3:5], 16)
+        blue = int(color[5:7], 16)
+        brightness = red * 0.299 + green * 0.587 + blue * 0.114
+        foreground = "#111111" if brightness >= 160 else "#FFFFFF"
+        self.title_color_button.configure(bg=color, fg=foreground, activebackground=color, activeforeground=foreground)
+
+    def select_title_color(self):
+        _rgb, color = colorchooser.askcolor(
+            color=normalize_cover_color(self.title_color_var.get()),
+            parent=self.root,
+            title=self.tr("title_color"),
+        )
+        if color:
+            self.title_color_var.set(normalize_cover_color(color))
+
+    def select_cover_icon(self, icon_number: int):
+        path = filedialog.askopenfilename(filetypes=[("Image", "*.png *.jpg *.jpeg"), ("All", "*.*")])
+        if not path:
+            return
+        self.icon_paths[icon_number] = path
+        value_var = self.icon1_var if icon_number == 1 else self.icon2_var
+        value_var.set(self.short_path(path))
+        self.save_cover_settings()
+        self.render_preview_path = None
+        self.simple_preview()
+
+    def clear_cover_icon(self, icon_number: int):
+        self.icon_paths[icon_number] = ""
+        value_var = self.icon1_var if icon_number == 1 else self.icon2_var
+        value_var.set(self.tr("unset"))
+        self.save_cover_settings()
+        self.render_preview_path = None
+        self.simple_preview()
+
+    def reset_title_from_audio(self, audio_path: str):
+        if not hasattr(self, "title_line1_var"):
+            return
+        self._suppress_cover_events = True
+        self.title_line1_var.set(Path(audio_path).stem)
+        self.title_line2_var.set("")
+        self._suppress_cover_events = False
+        self.save_cover_settings()
+        self.render_preview_path = None
+
     def build_center_preview(self):
         topbar = ttk.Frame(self.center)
         topbar.pack(fill=tk.X)
@@ -1342,7 +2079,7 @@ class App:
         self.preview_text_label = self.register_i18n(ttk.Label(preview_text_frame), "preview_subtitle")
         self.preview_text_label.pack(side=tk.LEFT)
         self.preview_text_var = tk.StringVar(value=self.preview_placeholder_text())
-        self.preview_text_entry = ttk.Entry(preview_text_frame, textvariable=self.preview_text_var)
+        self.preview_text_entry = self.editable_entry(preview_text_frame, textvariable=self.preview_text_var)
         self.preview_text_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=4)
         self.longest_srt_button = self.register_i18n(ttk.Button(preview_text_frame, command=self.set_longest_srt_preview_text), "longest_srt")
         self.longest_srt_button.pack(side=tk.LEFT)
@@ -1491,14 +2228,14 @@ class App:
         else:
             label = ttk.Label(frame, text=label_key, style="Panel.TLabel", width=14)
         label.pack(side=tk.LEFT)
-        ttk.Entry(frame, textvariable=value_var, width=width).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.editable_entry(frame, textvariable=value_var, width=width).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     def add_plain_entry(self, label: str, value_var: tk.StringVar, width: int = 24):
         frame = ttk.Frame(self.right, style="Panel.TFrame")
         frame.pack(fill=tk.X, padx=8, pady=2)
         ttk.Label(frame, text="", style="Panel.TLabel", width=2).pack(side=tk.LEFT)
         ttk.Label(frame, text=label, style="Panel.TLabel", width=14).pack(side=tk.LEFT)
-        ttk.Entry(frame, textvariable=value_var, width=width).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.editable_entry(frame, textvariable=value_var, width=width).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     def add_alignment_row(self):
         frame = ttk.Frame(self.right, style="Panel.TFrame")
@@ -1511,9 +2248,12 @@ class App:
     def build_bottom(self, main):
         bottom = ttk.Frame(main)
         bottom.pack(fill=tk.BOTH, expand=False, pady=(8, 0))
+        bottom.grid_columnconfigure(0, weight=3)
+        bottom.grid_columnconfigure(1, weight=2)
+        bottom.grid_rowconfigure(0, weight=1)
 
         jobs_frame = ttk.Frame(bottom)
-        jobs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=(0, 8))
+        jobs_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         self.jobs_label = self.register_i18n(ttk.Label(jobs_frame), "jobs")
         self.jobs_label.pack(anchor=tk.W)
         self.jobs_tree = ttk.Treeview(jobs_frame, columns=("status", "output"), show="headings", height=7)
@@ -1524,7 +2264,7 @@ class App:
         self.jobs_tree.pack(fill=tk.BOTH, expand=True)
 
         log_frame = ttk.Frame(bottom)
-        log_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        log_frame.grid(row=0, column=1, sticky="nsew")
         self.log_label = self.register_i18n(ttk.Label(log_frame), "log")
         self.log_label.pack(anchor=tk.W)
         self.log_text = tk.Text(log_frame, height=8, bg="#111214", fg=self.fg, insertbackground=self.fg, wrap=tk.WORD)
@@ -1586,7 +2326,7 @@ class App:
                     self.panel_grid,
                     text=label,
                     width=12,
-                    height=3,
+                    height=2,
                     bg=bg,
                     fg=fg,
                     activebackground="#4a4d55",
@@ -1595,7 +2335,7 @@ class App:
                     wraplength=90,
                     command=lambda pid=preset_id: self.apply_preset(pid, render=True) if pid else None,
                 )
-                btn.grid(row=r, column=c, padx=3, pady=3, sticky="nsew")
+                btn.grid(row=r, column=c, padx=2, pady=2, sticky="nsew")
                 if preset_id:
                     btn.tooltip = ToolTip(btn, full_name)
                     self.register_drop(btn, lambda event, pid=preset_id: self.handle_drop(event, preset_id=pid))
@@ -1652,7 +2392,7 @@ class App:
         label_frame = ttk.Frame(outer, style="Panel.TFrame")
         label_frame.pack(fill=tk.X, pady=(6, 4))
         ttk.Label(label_frame, text=self.tr("panel_label"), style="Panel.TLabel", width=12).pack(side=tk.LEFT)
-        self.panel_editor_label_entry = ttk.Entry(label_frame, textvariable=self.panel_editor_label_var, style="Path.TEntry")
+        self.panel_editor_label_entry = self.editable_entry(label_frame, textvariable=self.panel_editor_label_var)
         self.panel_editor_label_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
         self.panel_editor_label_entry.bind("<Return>", lambda _event: self.apply_panel_editor_label())
         ttk.Button(label_frame, text=self.tr("apply_panel_label"), command=self.apply_panel_editor_label).pack(side=tk.RIGHT)
@@ -1835,11 +2575,16 @@ class App:
         self.log(f"画像を設定: {path}")
         if not self.output_path:
             self.update_output_candidate()
+        self.request_render_preview()
 
     def set_audio(self, path: str, auto_srt: bool = True, auto_image: bool = False):
+        audio_changed = self.audio_path != path
         self.audio_path = path
         self.audio_var.set(self.short_path(path))
         self.log(f"音源を設定: {path}")
+        if audio_changed:
+            self.reset_title_from_audio(path)
+            self.simple_preview()
         if auto_image:
             title_image = sibling_title_image_for_audio(path)
             if title_image:
@@ -1854,6 +2599,7 @@ class App:
             else:
                 self.log("同名SRTは見つかりませんでした。字幕を付ける場合は手動で選択してください。")
         self.update_output_candidate()
+        self.request_render_preview()
 
     def set_srt(self, path: str, auto: bool = False, auto_audio: bool = True, auto_image: bool = True):
         self.srt_path = path
@@ -1870,6 +2616,7 @@ class App:
                 self.set_audio(audio, auto_srt=False, auto_image=False)
                 self.log(f"同名音源を自動設定: {audio}")
         self.set_longest_srt_preview_text()
+        self.request_render_preview()
 
     def update_output_candidate(self):
         if self.output_user_selected:
@@ -2125,6 +2872,7 @@ class App:
     def simple_preview(self):
         try:
             img, placeholder = self.preview_base_image()
+            img = compose_cover_image(img, self.cover_settings_snapshot())
             draw = ImageDraw.Draw(img)
             text = self.preview_text_var.get() or self.preview_placeholder_text()
             style = self.vars_to_style() if hasattr(self, "fontname_var") else self.working_style
@@ -2233,23 +2981,32 @@ class App:
         if not self.ensure_ffmpeg():
             return
         if self.render_thread and self.render_thread.is_alive():
-            self.log("レンダープレビュー生成中です。")
+            self._render_preview_requested = True
+            self.log("レンダープレビュー生成中です。完了後に最新設定で更新します。")
             return
         style = self.vars_to_style()
         text = self.preview_text_var.get() or srt_preview_text(self.srt_path, self.preview_placeholder_text())
         image_path = self.image_path if self.image_path and Path(self.image_path).exists() else None
+        cover_settings = self.cover_settings_snapshot()
         self.preview_status_var.set(self.tr("rendering_preview"))
-        self.render_thread = threading.Thread(target=self._render_preview_worker, args=(style, text, image_path), daemon=True)
+        self.render_thread = threading.Thread(target=self._render_preview_worker, args=(style, text, image_path, cover_settings), daemon=True)
         self.render_thread.start()
 
-    def _render_preview_worker(self, style: Dict[str, Any], text: str, image_path: Optional[str]):
+    def request_render_preview(self, delay_ms: int = 0):
+        if self._render_preview_after_id:
+            self.root.after_cancel(self._render_preview_after_id)
+        self._render_preview_after_id = self.root.after(delay_ms, self._run_requested_render_preview)
+
+    def _run_requested_render_preview(self):
+        self._render_preview_after_id = None
+        self.render_preview()
+
+    def _render_preview_worker(self, style: Dict[str, Any], text: str, image_path: Optional[str], cover_settings: Dict[str, Any]):
         try:
             with tempfile.TemporaryDirectory(prefix="subtitle_preview_") as td:
-                input_image = image_path
-                if not input_image:
-                    placeholder = str(Path(td) / "placeholder.png")
-                    Image.new("RGB", PREVIEW_PLACEHOLDER_SIZE, "white").save(placeholder)
-                    input_image = placeholder
+                input_image = str(Path(td) / "cover.png")
+                cover_image, _placeholder = load_and_compose_cover_image(image_path, cover_settings)
+                cover_image.save(input_image)
                 srt = str(Path(td) / "preview.srt")
                 out = str(Path(td) / "preview.png")
                 write_preview_srt(srt, text)
@@ -2263,7 +3020,7 @@ class App:
             self.call_ui_thread(self._render_preview_done)
         except Exception as exc:
             self.log_threadsafe(f"レンダープレビュー失敗: {exc}")
-            self.call_ui_thread(lambda: self.preview_status_var.set(self.tr("render_preview_failed")))
+            self.call_ui_thread(self._render_preview_failed)
 
     def _render_preview_done(self):
         try:
@@ -2273,6 +3030,20 @@ class App:
             self.update_status()
         except Exception as exc:
             self.log(f"レンダープレビュー表示失敗: {exc}")
+        self._run_queued_render_preview()
+
+    def _render_preview_failed(self):
+        self.preview_status_var.set(self.tr("render_preview_failed"))
+        self._run_queued_render_preview()
+
+    def _run_queued_render_preview(self):
+        if not self._render_preview_requested:
+            return
+        if self.render_thread and self.render_thread.is_alive():
+            self.root.after(50, self._run_queued_render_preview)
+            return
+        self._render_preview_requested = False
+        self.render_preview()
 
     # -----------------------------
     # MP4 generation
@@ -2289,9 +3060,9 @@ class App:
         if not self.ensure_ffmpeg():
             return
         missing = []
-        if not self.image_path:
+        if not self.image_path or not Path(self.image_path).is_file():
             missing.append("画像")
-        if not self.audio_path:
+        if not self.audio_path or not Path(self.audio_path).is_file():
             missing.append("音源")
         if missing:
             messagebox.showerror("入力不足", "未設定: " + ", ".join(missing))
@@ -2300,6 +3071,7 @@ class App:
         if not output_path:
             return
         style = json.loads(json.dumps(self.vars_to_style(), ensure_ascii=False))
+        cover_settings = self.cover_settings_snapshot()
         job = VideoJob(
             id=uuid.uuid4().hex,
             image_path=self.image_path,
@@ -2307,6 +3079,7 @@ class App:
             srt_path=self.srt_path,
             output_path=output_path,
             style=style,
+            cover_settings=cover_settings,
             created_at=time.strftime("%H:%M:%S"),
         )
         thread = threading.Thread(target=self._create_mp4_worker, args=(job,), daemon=True)
@@ -2384,6 +3157,9 @@ class App:
                 td_path = Path(td)
                 work_srt = str(td_path / "subtitle.srt")
                 work_wav = str(td_path / "audio.wav")
+                work_cover = str(td_path / "cover.png")
+                cover_image, _placeholder = load_and_compose_cover_image(job.image_path, job.cover_settings)
+                cover_image.save(work_cover)
                 has_subtitle = bool(job.srt_path and Path(job.srt_path).exists())
                 if has_subtitle:
                     normalize_srt_to_utf8(job.srt_path, work_srt)
@@ -2411,7 +3187,7 @@ class App:
                     "-framerate",
                     "30",
                     "-i",
-                    job.image_path,
+                    work_cover,
                     "-i",
                     work_wav,
                     "-map",
@@ -2453,9 +3229,12 @@ class App:
         cmd = [self.ffprobe, "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path]
         proc = run_subprocess(cmd, log_func=log_func or self.log_threadsafe, check=True)
         try:
-            return float(proc.stdout.strip())
+            duration = float(proc.stdout.strip())
         except Exception:
-            return 0.0
+            raise RuntimeError("ffprobeから音声長を取得できませんでした。")
+        if not duration > 0:
+            raise RuntimeError(f"音声長が不正です: {duration}")
+        return duration
 
     # -----------------------------
     # Logging
@@ -2495,7 +3274,7 @@ def main():
         root = TkinterDnD.Tk()
     else:
         root = tk.Tk()
-    root.geometry("1480x900")
+    root.geometry("1480x860")
     app = App(root)
     root.mainloop()
 

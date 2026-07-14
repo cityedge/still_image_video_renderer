@@ -1,5 +1,5 @@
 Still Image Video Renderer
-v1.0.0
+v1.1.0
 
 概要
 ----
@@ -33,6 +33,9 @@ v1.0.0
 - 選択中プリセットへの上書き保存もできます。
 - 選択中プリセットを消去できます。消去するとクイックパネル上の該当スロットも空きになります。
 - 「MP4作成」はクイックパネル下の動画作成セクションから実行します。
+- ベース画像へ、タイトル2行とアイコン2枚を合成してから動画を作成できます。タイトルはフォント、太字、斜体、色、縁取り、影、X/Y、行間、2行目インデントを設定できます。
+- タイトル2行目のインデントは -400〜400px で調整できます。
+- 起動時、および画像・音源・SRTを選択したときにレンダープレビューを更新します。生成中の場合は完了後に最新状態で再更新します。
 
 注意
 ----
@@ -54,6 +57,7 @@ build_exe_onedir.bat を実行してください。
 PyInstallerでtkinterdnd2を含めるため、--collect-all tkinterdnd2 と --hidden-import tkinterdnd2.TkinterDnD を指定しています。
 Windowsではffmpeg/ffprobe起動時に黒いコンソール窓が出ないよう、subprocessにはCREATE_NO_WINDOW相当の設定を適用しています。
 ffmpeg.exe / ffprobe.exe は bin フォルダに置くと、ビルド後の dist にコピーされます。
+ビルド時には presets_default.json のみを配布し、ローカルの presets.json はコピーしません。
 
 ffmpeg探索順
 ------------
@@ -63,5 +67,6 @@ ffmpeg探索順
 
 GitHub用ソースZIPについて
 -------------------------
+build_source_package.bat を実行すると dist\StillImageVideoRenderer_source_v1.1.0.zip を作成します。
 GitHub用ソースZIPには、Pythonソース、プリセット初期値、ドキュメント、バッチファイルを含めます。
 ffmpeg.exe / ffprobe.exe、.venv、build、dist、ローカル生成されたpresets.jsonやプレビュー画像は含めません。

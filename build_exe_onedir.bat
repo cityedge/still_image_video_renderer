@@ -33,7 +33,6 @@ rem if errorlevel 1 exit /b 1
 if not exist dist\StillImageVideoRenderer\bin mkdir dist\StillImageVideoRenderer\bin
 if exist bin\ffmpeg.exe copy /Y bin\ffmpeg.exe dist\StillImageVideoRenderer\bin\ffmpeg.exe
 if exist bin\ffprobe.exe copy /Y bin\ffprobe.exe dist\StillImageVideoRenderer\bin\ffprobe.exe
-if exist presets.json copy /Y presets.json dist\StillImageVideoRenderer\presets.json
 if exist presets_default.json copy /Y presets_default.json dist\StillImageVideoRenderer\presets_default.json
 if exist README.md copy /Y README.md dist\StillImageVideoRenderer\README.md
 if exist README_ja.txt copy /Y README_ja.txt dist\StillImageVideoRenderer\README_ja.txt

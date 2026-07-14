@@ -2,505 +2,78 @@
   "settings": {
     "preview_font_scale": 0.76,
     "default_preview_font": "Yu Gothic UI",
-    "settings_version": 4
+    "settings_version": 9,
+    "cover": {
+      "title_line1": "",
+      "title_line2": "",
+      "title_font": "BIZ UDPゴシック",
+      "title_bold": true,
+      "title_italic": false,
+      "title_line1_size": 60,
+      "title_line2_size": 60,
+      "title_outline": 2,
+      "title_shadow_enabled": false,
+      "title_shadow_offset": 3,
+      "title_x_pct": 3,
+      "title_y_pct": 5,
+      "title_line_gap": 16,
+      "title_line2_indent": 0,
+      "title_color": "#FFFFFF",
+      "icon1_path": "",
+      "icon2_path": ""
+    }
   },
   "presets": [
-    {
-      "id": "normal_top_v0",
-      "name": {
-        "ja": "01 通常 字幕上部 v0",
-        "en": "01 Normal Top v0"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 6,
-        "margin_v": null
-      }
-    },
-    {
-      "id": "normal_up2_v45",
-      "name": {
-        "ja": "02 通常 字幕上げ2 v45",
-        "en": "02 Normal Up 2 v45"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 6,
-        "margin_v": 45
-      }
-    },
-    {
-      "id": "normal_up_v65",
-      "name": {
-        "ja": "03 通常 字幕上げ v65",
-        "en": "03 Normal Up v65"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 6,
-        "margin_v": 65
-      }
-    },
-    {
-      "id": "normal_slightly_up_v95",
-      "name": {
-        "ja": "04 通常 字幕やや上 v95",
-        "en": "04 Normal Slightly Up v95"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 6,
-        "margin_v": 95
-      }
-    },
-    {
-      "id": "normal_tiny_up_v110",
-      "name": {
-        "ja": "04b 通常 字幕わずか上 v110",
-        "en": "04b Normal Tiny Up v110"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 6,
-        "margin_v": 110
-      }
-    },
-    {
-      "id": "normal_center_a10",
-      "name": {
-        "ja": "05 通常 字幕センター a10",
-        "en": "05 Normal Center a10"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 10,
-        "margin_v": null
-      }
-    },
-    {
-      "id": "normal_slightly_down_v155",
-      "name": {
-        "ja": "06 通常 字幕やや下 v155",
-        "en": "06 Normal Slightly Down v155"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 6,
-        "margin_v": 155
-      }
-    },
-    {
-      "id": "normal_down_v185",
-      "name": {
-        "ja": "07 通常 字幕下げ v185",
-        "en": "07 Normal Down v185"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 6,
-        "margin_v": 185
-      }
-    },
-    {
-      "id": "normal_down2_v215",
-      "name": {
-        "ja": "08 通常 字幕下げ2 v215",
-        "en": "08 Normal Down 2 v215"
-      },
-      "tags": [
-        "normal"
-      ],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 6,
-        "margin_v": 215
-      }
-    },
-    {
-      "id": "short_up2_v55",
-      "name": {
-        "ja": "12 ショート 字幕上げ2 v55",
-        "en": "12 Short Up 2 v55"
-      },
-      "tags": [
-        "short"
-      ],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": 55
-      }
-    },
-    {
-      "id": "short_up_v80",
-      "name": {
-        "ja": "13 ショート 字幕上げ v80",
-        "en": "13 Short Up v80"
-      },
-      "tags": [
-        "short"
-      ],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": 80
-      }
-    },
-    {
-      "id": "short_slightly_up_v90",
-      "name": {
-        "ja": "14 ショート 字幕やや上 v90",
-        "en": "14 Short Slightly Up v90"
-      },
-      "tags": [
-        "short"
-      ],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": 90
-      }
-    },
-    {
-      "id": "short_tiny_up_v105",
-      "name": {
-        "ja": "14b ショート 字幕わずか上 v105",
-        "en": "14b Short Tiny Up v105"
-      },
-      "tags": [
-        "short"
-      ],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": 105
-      }
-    },
-    {
-      "id": "short_center_a10",
-      "name": {
-        "ja": "15 ショート 字幕センター a10",
-        "en": "15 Short Center a10"
-      },
-      "tags": [
-        "short"
-      ],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 10,
-        "margin_v": null
-      }
-    },
-    {
-      "id": "short_slightly_down_v155",
-      "name": {
-        "ja": "16 ショート 字幕やや下 v155",
-        "en": "16 Short Slightly Down v155"
-      },
-      "tags": [
-        "short"
-      ],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": 155
-      }
-    },
-    {
-      "id": "short_down_v185",
-      "name": {
-        "ja": "17 ショート 字幕下げ v185",
-        "en": "17 Short Down v185"
-      },
-      "tags": [
-        "short"
-      ],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": 185
-      }
-    },
-    {
-      "id": "short_down2_v215",
-      "name": {
-        "ja": "18 ショート 字幕下げ2 v215",
-        "en": "18 Short Down 2 v215"
-      },
-      "tags": [
-        "short"
-      ],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": 215
-      }
-    },
-    {
-      "id": "15b_v145",
-      "name": {
-        "ja": "15b ショート 字幕わずかに下 v145",
-        "en": null
-      },
-      "tags": [],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": 145
-      }
-    },
-    {
-      "id": "11_a6",
-      "name": {
-        "ja": "11 ショート 字幕上部 a6",
-        "en": null
-      },
-      "tags": [],
-      "style": {
-        "fontname": null,
-        "fontsize": null,
-        "alignment": 6,
-        "margin_v": null
-      }
-    },
-    {
-      "id": "09_a2",
-      "name": {
-        "ja": "09 通常 字幕下部 a2",
-        "en": null
-      },
-      "tags": [],
-      "style": {
-        "fontname": "UD デジタル 教科書体 NK",
-        "fontsize": 20,
-        "alignment": 2,
-        "margin_v": null
-      }
-    }
+    {"id":"normal_top_v0","name":{"ja":"01 通常 字幕上部 v0","en":"01 Normal Top v0"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":6,"margin_v":null}},
+    {"id":"normal_up2_v45","name":{"ja":"02 通常 字幕上げ2 v45","en":"02 Normal Up 2 v45"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":6,"margin_v":45}},
+    {"id":"normal_up_v65","name":{"ja":"03 通常 字幕上げ v65","en":"03 Normal Up v65"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":6,"margin_v":65}},
+    {"id":"normal_slightly_up_v95","name":{"ja":"04 通常 字幕やや上 v95","en":"04 Normal Slightly Up v95"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":6,"margin_v":95}},
+    {"id":"normal_tiny_up_v110","name":{"ja":"04b 通常 字幕わずか上 v110","en":"04b Normal Tiny Up v110"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":6,"margin_v":110}},
+    {"id":"normal_center_a10","name":{"ja":"05 通常 字幕センター a10","en":"05 Normal Center a10"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":10,"margin_v":null}},
+    {"id":"normal_slightly_down_v155","name":{"ja":"06 通常 字幕やや下 v155","en":"06 Normal Slightly Down v155"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":6,"margin_v":155}},
+    {"id":"normal_down_v185","name":{"ja":"07 通常 字幕下げ v185","en":"07 Normal Down v185"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":6,"margin_v":185}},
+    {"id":"normal_down2_v215","name":{"ja":"08 通常 字幕下げ2 v215","en":"08 Normal Down 2 v215"},"tags":["normal"],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":6,"margin_v":215}},
+    {"id":"short_up2_v55","name":{"ja":"12 ショート 字幕上げ2 v55","en":"12 Short Up 2 v55"},"tags":["short"],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":55}},
+    {"id":"short_up_v80","name":{"ja":"13 ショート 字幕上げ v80","en":"13 Short Up v80"},"tags":["short"],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":80}},
+    {"id":"short_slightly_up_v90","name":{"ja":"14 ショート 字幕やや上 v90","en":"14 Short Slightly Up v90"},"tags":["short"],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":90}},
+    {"id":"short_tiny_up_v105","name":{"ja":"14b ショート 字幕わずか上 v105","en":"14 Short Tiny Up v105"},"tags":["short"],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":105}},
+    {"id":"short_center_a10","name":{"ja":"15 ショート 字幕センター a10","en":"15 Short Center a10"},"tags":["short"],"style":{"fontname":null,"fontsize":null,"alignment":10,"margin_v":null}},
+    {"id":"short_slightly_down_v155","name":{"ja":"16 ショート 字幕やや下 v155","en":"16 Short Slightly Down v155"},"tags":["short"],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":155}},
+    {"id":"short_down_v185","name":{"ja":"17 ショート 字幕下げ v185","en":"17 Short Down v185"},"tags":["short"],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":185}},
+    {"id":"short_down2_v215","name":{"ja":"18 ショート 字幕下げ2 v215","en":"18 Short Down 2 v215"},"tags":["short"],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":215}},
+    {"id":"15b_v145","name":{"ja":"15b ショート 字幕わずかに下 v145","en":null},"tags":[],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":145}},
+    {"id":"11_a6","name":{"ja":"11 ショート 字幕上部 a6","en":null},"tags":[],"style":{"fontname":null,"fontsize":null,"alignment":6,"margin_v":null}},
+    {"id":"09_a2","name":{"ja":"09 通常 字幕下部 a2","en":null},"tags":[],"style":{"fontname":"UD デジタル 教科書体 NK","fontsize":20,"alignment":2,"margin_v":null}}
   ],
   "panel_pages": [
     {
       "id": "page1",
-      "name": {
-        "ja": "ページ1",
-        "en": "Page 1"
-      },
+      "name": {"ja": "ページ1", "en": "Page 1"},
       "rows": 5,
       "cols": 4,
       "slots": [
-        {
-          "slot": 1,
-          "preset_id": "normal_center_a10",
-          "label": {
-            "ja": "05 通常 センター",
-            "en": "Center"
-          }
-        },
-        {
-          "slot": 2,
-          "preset_id": "normal_top_v0",
-          "label": {
-            "ja": "01 通常 上部",
-            "en": "Top"
-          }
-        },
-        {
-          "slot": 3,
-          "preset_id": "normal_up2_v45",
-          "label": {
-            "ja": "02 通常 上げ2",
-            "en": "Up 2"
-          }
-        },
-        {
-          "slot": 4,
-          "preset_id": "normal_up_v65",
-          "label": {
-            "ja": "03 通常 上げ",
-            "en": "Up"
-          }
-        },
-        {
-          "slot": 5,
-          "preset_id": "normal_slightly_down_v155",
-          "label": {
-            "ja": "06 通常 やや下",
-            "en": "Slight Down"
-          }
-        },
-        {
-          "slot": 6,
-          "preset_id": "normal_slightly_up_v95",
-          "label": {
-            "ja": "04 通常 やや上",
-            "en": "Slight Up"
-          }
-        },
-        {
-          "slot": 7,
-          "preset_id": "normal_tiny_up_v110",
-          "label": {
-            "ja": "04b 通常 わずか上",
-            "en": "Tiny Up"
-          }
-        },
-        {
-          "slot": 8,
-          "preset_id": "normal_down_v185",
-          "label": {
-            "ja": "07 通常 下げ",
-            "en": "Down"
-          }
-        },
-        {
-          "slot": 9,
-          "preset_id": "short_center_a10",
-          "label": {
-            "ja": "15 ショート センター",
-            "en": "Short Center"
-          }
-        },
-        {
-          "slot": 10,
-          "preset_id": "normal_down2_v215",
-          "label": {
-            "ja": "08 通常 下げ2",
-            "en": "Down 2"
-          }
-        },
-        {
-          "slot": 11,
-          "preset_id": "09_a2",
-          "label": {
-            "ja": "09 通常 下部",
-            "en": "Bottom"
-          }
-        },
-        {
-          "slot": 12,
-          "preset_id": "11_a6",
-          "label": {
-            "ja": "11 ショート 上部",
-            "en": "Short Top"
-          }
-        },
-        {
-          "slot": 13,
-          "preset_id": "15b_v145",
-          "label": {
-            "ja": "15b ショート わずか下",
-            "en": "Short Tiny Down"
-          }
-        },
-        {
-          "slot": 14,
-          "preset_id": "short_up2_v55",
-          "label": {
-            "ja": "12 ショート 上げ2",
-            "en": "Short Up 2"
-          }
-        },
-        {
-          "slot": 15,
-          "preset_id": "short_up_v80",
-          "label": {
-            "ja": "13 ショート 上げ",
-            "en": "Short Up"
-          }
-        },
-        {
-          "slot": 16,
-          "preset_id": "short_slightly_up_v90",
-          "label": {
-            "ja": "14 ショート やや上",
-            "en": "Short Slight Up"
-          }
-        },
-        {
-          "slot": 17,
-          "preset_id": "short_slightly_down_v155",
-          "label": {
-            "ja": "16 ショート やや下",
-            "en": "Short Slight Down"
-          }
-        },
-        {
-          "slot": 18,
-          "preset_id": "short_tiny_up_v105",
-          "label": {
-            "ja": "14b ショート わずか上",
-            "en": "Short Tiny Up"
-          }
-        },
-        {
-          "slot": 19,
-          "preset_id": "short_down_v185",
-          "label": {
-            "ja": "17 ショート 下げ",
-            "en": "Short Down"
-          }
-        },
-        {
-          "slot": 20,
-          "preset_id": "short_down2_v215",
-          "label": {
-            "ja": "18 ショート 下げ2",
-            "en": "Short Down 2"
-          }
-        }
+        {"slot":1,"preset_id":"normal_center_a10","label":{"ja":"05 通常 センター","en":"Center"}},
+        {"slot":2,"preset_id":"normal_top_v0","label":{"ja":"01 通常 上部","en":"Top"}},
+        {"slot":3,"preset_id":"normal_up2_v45","label":{"ja":"02 通常 上げ2","en":"Up 2"}},
+        {"slot":4,"preset_id":"normal_up_v65","label":{"ja":"03 通常 上げ","en":"Up"}},
+        {"slot":5,"preset_id":"normal_slightly_down_v155","label":{"ja":"06 通常 やや下","en":"Slight Down"}},
+        {"slot":6,"preset_id":"normal_slightly_up_v95","label":{"ja":"04 通常 やや上","en":"Slight Up"}},
+        {"slot":7,"preset_id":"normal_tiny_up_v110","label":{"ja":"04b 通常 わずか上","en":"Tiny Up"}},
+        {"slot":8,"preset_id":"normal_down_v185","label":{"ja":"07 通常 下げ","en":"Down"}},
+        {"slot":9,"preset_id":"short_center_a10","label":{"ja":"15 ショート センター","en":"Short Center"}},
+        {"slot":10,"preset_id":"normal_down2_v215","label":{"ja":"08 通常 下げ2","en":"Down 2"}},
+        {"slot":11,"preset_id":"09_a2","label":{"ja":"09 通常 下部","en":"Bottom"}},
+        {"slot":12,"preset_id":"11_a6","label":{"ja":"11 ショート 上部","en":"Short Top"}},
+        {"slot":13,"preset_id":"15b_v145","label":{"ja":"15b ショート わずか下","en":"Short Tiny Down"}},
+        {"slot":14,"preset_id":"short_up2_v55","label":{"ja":"12 ショート 上げ2","en":"Short Up 2"}},
+        {"slot":15,"preset_id":"short_up_v80","label":{"ja":"13 ショート 上げ","en":"Short Up"}},
+        {"slot":16,"preset_id":"short_slightly_up_v90","label":{"ja":"14 ショート やや上","en":"Short Slight Up"}},
+        {"slot":17,"preset_id":"short_slightly_down_v155","label":{"ja":"16 ショート やや下","en":"Short Slight Down"}},
+        {"slot":18,"preset_id":"short_tiny_up_v105","label":{"ja":"14b ショート わずか上","en":"Short Tiny Up"}},
+        {"slot":19,"preset_id":"short_down_v185","label":{"ja":"17 ショート 下げ","en":"Short Down"}},
+        {"slot":20,"preset_id":"short_down2_v215","label":{"ja":"18 ショート 下げ2","en":"Short Down 2"}}
       ]
     },
-    {
-      "id": "page2",
-      "name": {
-        "ja": "ページ2",
-        "en": "Page 2"
-      },
-      "rows": 5,
-      "cols": 4,
-      "slots": []
-    }
+    {"id":"page2","name":{"ja":"ページ2","en":"Page 2"},"rows":5,"cols":4,"slots":[]}
   ]
 }
